@@ -1,3 +1,5 @@
+source('C:/Users/brendan.turley/Documents/R_projects/Looking_4_CMP/scripts/kmk_convert_2fl.R')
+
 library(dplyr)
 library(lubridate)
 library(readxl)
@@ -15,12 +17,23 @@ convert_excel_dates <-
     )
   }
 
+cv <- 
+  function (x) {
+    return( sd(x, na.rm = T) / mean(x, na.rm = T) )
+  }
+
+se <- 
+  function (x) {
+    return( sd(x, na.rm = T) / sqrt(length(x)) )
+  }
+
 
 setwd("C:/Users/brendan.turley/Documents/CMP/data/kmk_lengths")
 dat_38u <- read_xlsx('2019SEDAR38UAge_Data (1).xlsx', sheet = 2)
 
-dat2 <- subset(dat_38u, MACRO_SEX == 'M' | MACRO_SEX == 'F') #|>
-  # subset(GEAR_GROUP_CODE == 'HL')
+dat2 <- subset(dat_38u, MACRO_SEX == 'M' | MACRO_SEX == 'F') |>
+  subset(GEAR_GROUP_CODE == 'HL') |>
+  subset(CALENDAR_AGE < 9 & CALENDAR_AGE > 1)
 
 
 ### find mean length at age per year
@@ -29,7 +42,7 @@ table(dat2$CATCH_YEAR, dat2$CALENDAR_AGE)
 table(dat2$CATCH_YEAR, dat2$MACRO_SEX)
 
 yr_agg <- aggregate(OBSERVED_FL_MM ~ CATCH_YEAR + CALENDAR_AGE + MACRO_SEX + STOCK_ID,
-                    data = dat2, median, na.rm = T)
+                    data = dat2, mean, na.rm = T)
 ages <- unique(yr_agg$CALENDAR_AGE)
 unique(yr_agg$STOCK_ID)
 
@@ -79,21 +92,25 @@ names(dat_38) <- tolower(names(dat_38))
 dat_38$gear[which(dat_38$gear=='Hl')] = 'HL'
 
 dat3 <- subset(dat_38, sex == 'M' | sex == 'F') |>
-  subset(final_age <9) |>
+  subset(final_age < 9 & final_age > 1) |>
   subset(gear == 'HL') |>
-# subset(mode != 'TRN')
+  # subset(mode != 'TRN')
   subset(state != 'MEX') #|>
-  # subset(state != 'TX')
+# subset(state == 'TX' | state == 'LA')
+# subset(stock_id_2 == 'Unknown')
 
 
 ### find mean length at age per year
 length(which(!is.na(dat3$fl_mm)))
+table(dat3$state, dat3$stock_id_2)
+table(dat3$month_num, dat3$stock_id_2) # unknown stock-ID caught in mixing zone Apr-Oct
+table(dat3$year, dat3$state)
 table(dat3$year, dat3$final_age)
 table(dat3$year, dat3$sex)
 table(dat3$gear)
 
 yr_agg3 <- aggregate(fl_mm ~ year + final_age + sex + stock_id_2,
-                    data = dat3, median, na.rm = T)
+                     data = dat3, mean, na.rm = T)
 ages3 <- unique(yr_agg3$final_age)
 unique(yr_agg3$stock_id_2)
 
@@ -102,7 +119,7 @@ par(mfrow = c(2, 2))
 
 plot(yr_agg3$year, yr_agg3$fl_mm,
      type = 'n', xlab = 'Age', ylab = 'Mean Length (mm)', main = 'Stock ID: GOM')
-for(i in ages[1:8]){
+for(i in ages3){
   with(subset(yr_agg3, final_age == i & sex =='F' & stock_id_2 == 'Gulf'),
        lines(year, fl_mm, col = i, lwd = 2))
   with(subset(yr_agg3, final_age == i & sex =='M' & stock_id_2 == 'Gulf'),
@@ -112,7 +129,7 @@ for(i in ages[1:8]){
 
 plot(yr_agg3$year, yr_agg3$fl_mm,
      type = 'n', xlab = 'Age', ylab = 'Mean Length (mm)', main = 'Stock ID: SoAtl')
-for(i in ages[1:8]){
+for(i in ages3){
   with(subset(yr_agg3, final_age == i & sex =='F' & stock_id_2 == 'Atlantic'),
        lines(year, fl_mm, col = i, lwd = 2))
   with(subset(yr_agg3, final_age == i & sex =='M' & stock_id_2 == 'Atlantic'),
@@ -121,10 +138,132 @@ for(i in ages[1:8]){
 
 plot(yr_agg3$year, yr_agg3$fl_mm,
      type = 'n', xlab = 'Age', ylab = 'Mean Length (mm)', main = 'Stock ID: Mixing')
-for(i in ages[1:8]){
+for(i in ages3){
   with(subset(yr_agg3, final_age == i & sex =='F' & stock_id_2 == 'Winter Mixing'),
        lines(year, fl_mm, col = i, lwd = 2))
   with(subset(yr_agg3, final_age == i & sex =='M' & stock_id_2 == 'Winter Mixing'),
        lines(year, fl_mm, col = i, lwd = 2, lty = 3))
 }
 
+
+
+### steps:
+# 1 ignore mixing zone and Mexico; subset for HL gear and ages 1-8
+# 2 remove 2013 from SEDAR38 dataset
+# 3 aggregate mean, median, sd, se, cv, iqr for each
+# 4 combine SEDAR38 and 38U and plot
+
+#sedar38
+sd_38 <- subset(dat3, stock_id_2 != "Winter Mixing" &
+                  year != 2013 &
+                  stock_id_2 != "Unknown")
+#sedar38U
+sd_38u <- subset(dat2, STOCK_ID != "MIXING")
+
+
+agg_38 <- aggregate(fl_mm ~ year + sex + stock_id_2,
+                    data = sd_38, mean, na.rm = T)
+
+agg_38u <- aggregate(OBSERVED_FL_MM ~ CATCH_YEAR + MACRO_SEX + STOCK_ID,
+                     data = sd_38u, mean, na.rm = T)
+
+names(agg_38u) <- names(agg_38)
+agg_38$stock_id_2 <- toupper(agg_38$stock_id_2)
+agg_38u$stock_id_2 <- sapply(agg_38u$stock_id_2, switch,
+                             'GULF OF MEXICO' = 'GULF', 'SOUTH ATLANTIC' = 'ATLANTIC', 'MIXING' = 'MIXING',
+                             USE.NAMES = F)
+
+agg_All <- rbind(agg_38, agg_38u)
+
+plot(agg_All$year, agg_All$fl_mm,
+     type = 'n', xlab = 'year', ylab = 'Mean Length (mm)')
+
+with(subset(agg_All, sex =='F' & stock_id_2 == 'GULF'),
+     lines(year, fl_mm, col = 1, lwd = 2))
+with(subset(agg_All, sex =='M' & stock_id_2 == 'GULF'),
+     lines(year, fl_mm, col = 1, lwd = 2, lty = 3))
+
+with(subset(agg_All, sex =='F' & stock_id_2 == 'ATLANTIC'),
+     lines(year, fl_mm, col = 2, lwd = 2))
+with(subset(agg_All, sex =='M' & stock_id_2 == 'ATLANTIC'),
+     lines(year, fl_mm, col = 2, lwd = 2, lty = 3))
+
+
+
+laa_38 <- aggregate(fl_mm ~ year + final_age + sex + stock_id_2,
+                     data = sd_38, mean, na.rm = T)
+laa_38u <- aggregate(OBSERVED_FL_MM ~ CATCH_YEAR + CALENDAR_AGE + MACRO_SEX + STOCK_ID,
+                    data = sd_38u, mean, na.rm = T)
+
+names(laa_38u) <- names(laa_38)
+laa_38$stock_id_2 <- toupper(laa_38$stock_id_2)
+laa_38u$stock_id_2 <- sapply(laa_38u$stock_id_2, switch,
+                             'GULF OF MEXICO' = 'GULF', 'SOUTH ATLANTIC' = 'ATLANTIC', 'MIXING' = 'MIXING',
+                             USE.NAMES = F)
+
+laa_all <- rbind(laa_38, laa_38u)
+ages <- unique(laa_all$final_age)
+
+mean_lth <- aggregate(fl_mm ~ final_age + sex + stock_id_2, laa_all, mean) 
+
+
+par(mfrow = c(1, 2))
+
+plot(laa_all$year, laa_all$fl_mm,
+     type = 'n', xlab = 'Age', ylab = 'Mean Length (mm)', main = 'Stock ID: GOM')
+for(i in ages){
+  with(subset(laa_all, final_age == i & sex =='F' & stock_id_2 == 'GULF'),
+       lines(year, fl_mm, col = i, lwd = 2))
+  with(subset(laa_all, final_age == i & sex =='M' & stock_id_2 == 'GULF'),
+       lines(year, fl_mm, col = i, lwd = 2, lty = 3))
+}
+grid()
+# legend('topright', legend = ages[1:8], col = ages[1:8], lty = 1)
+
+plot(laa_all$year, laa_all$fl_mm,
+     type = 'n', xlab = 'Age', ylab = 'Mean Length (mm)', main = 'Stock ID: SoAtl')
+for(i in ages){
+  with(subset(laa_all, final_age == i & sex =='F' & stock_id_2 == 'ATLANTIC'),
+       lines(year, fl_mm, col = i, lwd = 2))
+  with(subset(laa_all, final_age == i & sex =='M' & stock_id_2 == 'ATLANTIC'),
+       lines(year, fl_mm, col = i, lwd = 2, lty = 3))
+}
+grid()
+
+
+
+laa_38 <- aggregate(fl_mm ~ year + final_age + stock_id_2,
+                    data = sd_38, mean, na.rm = T)
+laa_38u <- aggregate(OBSERVED_FL_MM ~ CATCH_YEAR + CALENDAR_AGE + STOCK_ID,
+                     data = sd_38u, mean, na.rm = T)
+
+names(laa_38u) <- names(laa_38)
+laa_38$stock_id_2 <- toupper(laa_38$stock_id_2)
+laa_38u$stock_id_2 <- sapply(laa_38u$stock_id_2, switch,
+                             'GULF OF MEXICO' = 'GULF', 'SOUTH ATLANTIC' = 'ATLANTIC', 'MIXING' = 'MIXING',
+                             USE.NAMES = F)
+
+laa_all <- rbind(laa_38, laa_38u)
+ages <- unique(laa_all$final_age)
+
+mean_lth <- aggregate(fl_mm ~ final_age + stock_id_2, laa_all, mean) 
+
+
+par(mfrow = c(1, 2))
+
+plot(laa_all$year, laa_all$fl_mm,
+     type = 'n', xlab = 'Age', ylab = 'Mean Length (mm)', main = 'Stock ID: GOM')
+for(i in ages){
+  with(subset(laa_all, final_age == i & stock_id_2 == 'GULF'),
+       lines(year, fl_mm, col = i, lwd = 2))
+}
+grid()
+# legend('topright', legend = ages[1:8], col = ages[1:8], lty = 1)
+
+plot(laa_all$year, laa_all$fl_mm,
+     type = 'n', xlab = 'Age', ylab = 'Mean Length (mm)', main = 'Stock ID: SoAtl')
+for(i in ages){
+  with(subset(laa_all, final_age == i & stock_id_2 == 'ATLANTIC'),
+       lines(year, fl_mm, col = i, lwd = 2))
+}
+grid()
