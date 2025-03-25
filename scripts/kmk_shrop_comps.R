@@ -82,3 +82,15 @@ for(i in ages2){
   with(subset(yr_agg2, age == i & SEX =='Male'),
        lines(YEAR, LENGTH..FL.mm., col = i, lwd = 2, lty = 3))
 }
+
+names(yr_agg) <- toupper(names(yr_agg))
+names(yr_agg2) <- toupper(names(yr_agg2))
+yr_agg_gulf <- subset(yr_agg, STOCK_ID2 == 'Gulf')[,-2]
+
+yr_merge <- merge(yr_agg_gulf, yr_agg2, by = c('YEAR', 'AGE', 'SEX'))
+yr_merge$FLENGTH <- yr_merge$FLENGTH*10
+
+plot(yr_merge$FLENGTH, yr_merge$LENGTH..FL.MM., asp = 1)
+abline(0,1,col=2)
+plot(yr_merge$YEAR, yr_merge$FLENGTH, col = 2)
+points(yr_merge$YEAR, yr_merge$LENGTH..FL.MM., col = 3)
