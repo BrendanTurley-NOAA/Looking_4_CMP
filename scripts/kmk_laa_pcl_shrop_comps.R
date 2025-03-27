@@ -133,3 +133,65 @@ table(subdat_38$year)
 table(subdat_38u$CATCH_YEAR)
 table(subshrop1$year)
 table(subshrop2$YEAR)
+
+table(subdat_38$mode)
+table(subdat_38u$FISHING_MODE)
+table(subshrop1$MODE)
+table(subshrop2$MODE)
+
+table(subdat_38$mode_2)
+table(subdat_38u$FISHERY)
+
+table(subdat_38$source)
+table(subdat_38u$SOURCE_CODE)
+table(subshrop1$SOURCE)
+table(subshrop2$SOURCE)
+
+table(subdat_38$gear)
+table(subdat_38u$GEAR_GROUP_CODE)
+table(subshrop1$GEAR)
+table(subshrop2$GEAR)
+
+par(mfcol = c(2, 2))
+
+ages <- unique(laa_merge1$final_age)
+
+plot(laa_merge1$year, laa_merge1$fl_mm.x,
+     type = 'n', xlab = 'Age', ylab = 'Mean Length (mm)', main = 'Stock ID: GOM')
+for(i in ages){
+  with(subset(laa_merge1, final_age == i & sex =='Female'),
+       lines(year, fl_mm.x, col = i, lwd = 2))
+  with(subset(laa_merge1, final_age == i & sex =='Male'),
+       lines(year, fl_mm.x, col = i, lwd = 2, lty = 3))
+}
+
+plot(laa_merge1$year, laa_merge1$fl_mm.y,
+     type = 'n', xlab = 'Age', ylab = 'Mean Length (mm)', main = 'Stock ID: GOM')
+for(i in ages){
+  with(subset(laa_merge1, final_age == i & sex =='Female'),
+       lines(year, fl_mm.y, col = i, lwd = 2))
+  with(subset(laa_merge1, final_age == i & sex =='Male'),
+       lines(year, fl_mm.y, col = i, lwd = 2, lty = 3))
+}
+
+
+
+ages <- unique(laa_merge2$final_age)
+
+plot(laa_merge2$year, laa_merge2$fl_mm.x,
+     type = 'n', xlab = 'Age', ylab = 'Mean Length (mm)', main = 'Stock ID: GOM')
+for(i in ages){
+  with(subset(laa_merge2, final_age == i & sex =='Female'),
+       lines(year, fl_mm.x, col = i, lwd = 2))
+  with(subset(laa_merge2, final_age == i & sex =='Male'),
+       lines(year, fl_mm.x, col = i, lwd = 2, lty = 3))
+}
+
+plot(laa_merge2$year, laa_merge2$fl_mm.y,
+     type = 'n', xlab = 'Age', ylab = 'Mean Length (mm)', main = 'Stock ID: GOM')
+for(i in ages){
+  with(subset(laa_merge2, final_age == i & sex =='Female'),
+       lines(year, fl_mm.y, col = i, lwd = 2))
+  with(subset(laa_merge2, final_age == i & sex =='Male'),
+       lines(year, fl_mm.y, col = i, lwd = 2, lty = 3))
+}
