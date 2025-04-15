@@ -29,13 +29,13 @@ yr_all <- aggregate(Live.Lbs ~ Year, data = gom_kmk, sum, na.rm = T)
 
 png('kmk_landings_yr.png', width = 8, height = 5, res = 300, units = 'in')
 par(mfrow = c(1,1), mar = c(4,4,1,1))
-plot(yr_st$Year, yr_st$Live.Lbs/10000, typ = 'n',las=1,
-     xlab = 'Year', ylab = 'Landings (x10,000 lbs.)')
+plot(yr_st$Year, yr_st$Live.Lbs/1e6, typ = 'n',las=1,
+     xlab = 'Year', ylab = 'Landings (x1,000,000 lbs.)')
 state <- sort(unique(yr_st$State))
 n = 1
 for(i in state){
   with(subset(yr_st, State==i), {
-    lines(Year, Live.Lbs/10000, col = n, lwd = 2, pch = n + 15, typ = 'o')
+    lines(Year, Live.Lbs/1e6, col = n, lwd = 2, pch = n + 15, typ = 'o')
     # abline(lm(Live.Lbs/10000 ~ Year), lty=1, col = n)
   })
   n <- n + 1
@@ -283,4 +283,21 @@ for(i in state){
 legend('topleft',state, pch = 1:5+15, col = 1:5)
 mtext('Gulf Rec', side = 3, adj = 0.5)
 
+
+gulf_agg_com2 <- subset(gulf_agg_com, Year>1999)
+# png('kmk_landings_yr.png', width = 8, height = 5, res = 300, units = 'in')
+par(mfrow = c(1,1), mar = c(4,4,1,1))
+plot(gulf_agg_com2$Year, gulf_agg_com2$Pounds/1e6, typ = 'n',las=1,
+     xlab = 'Year', ylab = 'Landings (x1,000,000 lbs.)')
+state <- sort(unique(gulf_agg_com2$State))
+n = 1
+for(i in state){
+  with(subset(gulf_agg_com2, State==i), {
+    lines(Year, Pounds/1e6, col = n, lwd = 2, pch = n + 15, typ = 'o')
+    # abline(lm(Live.Lbs/10000 ~ Year), lty=1, col = n)
+  })
+  n <- n + 1
+}
+legend('topleft',state, pch = 1:5+15, col = 1:5)
+# dev.off()
 
