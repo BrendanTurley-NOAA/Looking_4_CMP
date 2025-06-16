@@ -61,8 +61,27 @@ plot(ves_land$tot_kg.x, ves_land$prop,log='xy')
 abline(v = cutoff, h = cutoff2, col = 2, lty = 5)
 
 # kmk_ves <- vessel_landings$VESSEL_ID[which(vessel_landings$tot_kg>cutoff)]
+# kmk_ves2 <- ves_land$VESSEL_ID[which(ves_land$tot_kg.x>cutoff)]
+# kmk_ves3 <- ves_land$VESSEL_ID[which(ves_land$prop>cutoff2)]
+# identical(kmk_ves, kmk_ves2)
+# identical(kmk_ves, kmk_ves3)
 kmk_ves <- ves_land$VESSEL_ID[which(ves_land$tot_kg.x>cutoff |
                                              ves_land$prop>cutoff2)]
+### check if hours fished longer than trip
+diff_time <- (cflp_hl$LAND_DATE-cflp_hl$DEPART_DATE)
+units(diff_time) <- 'hours'
+### hours fished should not be greater than trip time
+which(cflp_hl$FISHED>24 & diff_time==0)
+cflp_hl[1029,]
+### divide by number of gear
+which((cflp_hl$FISHED/cflp_hl$NUMGEAR)>24 & diff_time==0)
+cflp_hl[1008377,]
+
+identical(which(cflp_hl$FISHED > diff_time),
+          which(diff_time>24))
+which(cflp_hl$FISHED>24 & cflp_hl$FISHED==0)
+which(cflp_hl$FISHED>diff_time & cflp_hl$FISHED>24)
+
 
 cflp_hl_0 <- cflp_hl[is.element(cflp_hl$VESSEL_ID, kmk_ves), ] |>
   subset(NUMGEAR<quantile(cflp_hl$NUMGEAR, .99, na.rm = T) &

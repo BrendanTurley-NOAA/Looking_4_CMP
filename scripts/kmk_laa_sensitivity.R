@@ -8,11 +8,14 @@
 source('C:/Users/brendan.turley/Documents/R_projects/Looking_4_CMP/scripts/helper_fxns.R')
 
 library(dplyr)
+library(here)
 library(lubridate)
 library(readxl)
 library(stringr)
 
 
+setwd(paste0(here()))
+setwd("C:/Users/brendan.turley/Documents/CMP/data/kmk_lengths")
 ### sedar38 data: 1986-2013
 dat_38 <- read_xlsx('SEDAR38 PCLAB Age File New Mixing Zone_v2.xlsx', sheet = 1)
 dat_38$date2 <- convert_excel_dates(dat_38$Date)

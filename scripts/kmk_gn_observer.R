@@ -31,8 +31,9 @@ animal <- read_excel('ANIMAL_LOG.xlsx')
 
 
 ### subset for KMK hauls and pull unique trip IDs
-kmk_h <- subset(haul, TARGET_SPECIES=='King Mackerel' &
-                  GEAR_TYPE=='GILL NETS, DRIFT, RUNAROUND')
+# kmk_h <- subset(haul, TARGET_SPECIES=='King Mackerel' &
+#                   GEAR_TYPE=='GILL NETS, DRIFT, RUNAROUND')
+kmk_h <- subset(haul, TARGET_SPECIES=='King Mackerel')
 kmk_id <- sort(unique(kmk_h$TRIP_ID))
 
 

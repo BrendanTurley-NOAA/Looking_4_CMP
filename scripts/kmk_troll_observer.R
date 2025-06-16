@@ -6,6 +6,16 @@ library(terra)
 setwd("C:/Users/brendan.turley/Documents/data/Fishery_observer_data/ReefExtraction for Coastal Pelagics (i.e. Trollin20240924044830")
 data <- read_xlsx('Trolling Reef Observer Program Request (09_24_24).xlsx')
 
+#### ---- ####
+library(leaflet)
+
+kmk <- subset(data, SPECIES_ITIS=='172435')
+kmk_locs <- data.frame(long = kmk$LON_BEGIN_SET,
+                       lat = kmk$LAT_BEGIN_SET)
+
+leaflet(kmk_locs) %>% addTiles() %>% addMarkers()
+#### ---- ####
+
 table(data$DATA_SOURCE)
 data <- subset(data, DATA_SOURCE=='RFOP')
 length(unique(data$TRIPNUMBER))
