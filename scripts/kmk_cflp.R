@@ -89,7 +89,7 @@ cflp_hl_0 <- cflp_hl[is.element(cflp_hl$VESSEL_ID, kmk_ves), ] |>
            FISHED<quantile(cflp_hl$FISHED, .99, na.rm = T))
 
 cpue_yr_reg <- aggregate(cpue ~ LAND_YEAR + REGION + COMMON_NAME,
-                         data = cflp_hl,
+                         data = cflp_hl_0,
                          median, na.rm = T)
 gc()
 
@@ -108,6 +108,7 @@ abline(h = with(subset(cpue_yr_reg, REGION=='SATL' & COMMON_NAME=='MACKERELS, KI
        col = 2, lty = 5)
 abline(v = 2013, col = 4, lty = 2)
 legend('topleft', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
+
 
 
 cpue_yr_st <- aggregate(cpue ~ LAND_YEAR + ST_ABRV + REGION + COMMON_NAME,
@@ -130,7 +131,7 @@ for(i in 1:length(gulf)){
 legend('topleft',gulf, lty=1, col=1:length(gulf),bty = 'n', pch = 16, lwd = 2)
 
 #SATL
-satl <- c('GA', 'NC', 'NJ', 'NY', 'SC', 'VA')
+satl <- c('FL', 'GA', 'NC', 'NJ', 'NY', 'SC', 'VA')
 with(subset(cpue_yr_st, is.element(ST_ABRV, satl) & 
               REGION=='SATL' &
               COMMON_NAME=='MACKERELS, KING AND CERO'),
@@ -167,6 +168,10 @@ abline(lm(cpue ~ LAND_YEAR,
 
 
 ### none of these (hours, effort, numgear) are useful
+cpue_yr <- aggregate(cpue ~ LAND_YEAR + REGION + COMMON_NAME,
+                    data = cflp_hl_0,
+                    sum, na.rm = T)
+
 hrs_yr <- aggregate(FISHED ~ LAND_YEAR + REGION + COMMON_NAME,
                      data = cflp_hl_0,
                      sum, na.rm = T) #median value not informative
@@ -187,6 +192,22 @@ trps_yr <- aggregate(SCHEDULE_NUMBER ~ LAND_YEAR + REGION + COMMON_NAME,
                     data = cflp_hl_0,
                     function(x) length(unique(x)))
 
+
+with(subset(cpue_yr, REGION=='GOM' &
+              COMMON_NAME=='MACKERELS, KING AND CERO'),
+     plot(LAND_YEAR, cpue, typ = 'o', pch = 16))
+grid()
+with(subset(cpue_yr, REGION=='SATL' &
+              COMMON_NAME=='MACKERELS, KING AND CERO'),
+     points(LAND_YEAR, cpue, typ = 'o', pch = 16, col = 2))
+abline(v = 2013, lty = 5)
+legend('topleft', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
+abline(lm(cpue ~ LAND_YEAR,
+          data = subset(cpue_yr, REGION=='GOM' &
+                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 1)
+abline(lm(cpue ~ LAND_YEAR,
+          data = subset(cpue_yr, REGION=='SATL' &
+                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 2)
 
 with(subset(hrs_yr, REGION=='GOM' &
               COMMON_NAME=='MACKERELS, KING AND CERO'),
