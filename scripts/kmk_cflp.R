@@ -21,7 +21,7 @@ sz_shp$AREA_FISHED <- sz_shp$SZ_ID
 
 setwd("C:/Users/brendan.turley/Documents/CMP/data/cflp")
 cflp <- readRDS('CFLPkarnauskas.rds')
-cflp <- cflp[which(cflp$LAND_YEAR<2024), ]
+cflp <- cflp[which(cflp$LAND_YEAR<2024 & cflp$LAND_YEAR>1999), ]
 
 ### following methods by Walter & McCarthy 2014 (1993-2013SEDAR38-DW-10) 
 # CPUE = total kilograms of king mackerel/(number of lines fished*number of hooks per line*total hours fished) 
@@ -43,17 +43,19 @@ gc()
 #      addmargins(table(LAND_YEAR, LAND_MONTH, useNA = 'always')))
 
 ### pull vessels landing the top 80% of KMK
-vessel_landings <- with(subset(cflp_hl, REGION=='GOM' & 
+vessel_landings <- with(subset(cflp_hl, #REGION=='GOM' &
                                  COMMON_NAME=='MACKERELS, KING AND CERO'),
                         aggregate(tot_kg ~ VESSEL_ID, FUN = sum, na.rm = T))
-vessel_landings_else <- with(subset(cflp_hl, REGION=='GOM'),
-                             aggregate(tot_kg ~ VESSEL_ID, FUN = sum, na.rm = T))
+# vessel_landings_else <- with(subset(cflp_hl, REGION=='GOM'),
+#                              aggregate(tot_kg ~ VESSEL_ID, FUN = sum, na.rm = T))
+vessel_landings_else <- aggregate(tot_kg ~ VESSEL_ID, data = cflp_hl,
+                                  FUN = sum, na.rm = T)
 ves_land <- merge(vessel_landings, vessel_landings_else, by = c('VESSEL_ID'))
 ves_land$prop <- ves_land$tot_kg.x / ves_land$tot_kg.y
 quantile(vessel_landings$tot_kg, seq(0,1,.1))
-hist(vessel_landings$tot_kg)
+# hist(vessel_landings$tot_kg)
 quantile(ves_land$prop, seq(0,1,.1))
-hist(ves_land$prop)
+# hist(ves_land$prop)
 cutoff <- quantile(vessel_landings$tot_kg, .2)
 cutoff2 <- quantile(ves_land$prop, .2)
 
@@ -70,12 +72,16 @@ kmk_ves <- ves_land$VESSEL_ID[which(ves_land$tot_kg.x>cutoff |
 ### check if hours fished longer than trip
 diff_time <- (cflp_hl$LAND_DATE-cflp_hl$DEPART_DATE)
 units(diff_time) <- 'hours'
+# both depart and land times are 03:00 ET; if we round
 ### hours fished should not be greater than trip time
 which(cflp_hl$FISHED>24 & diff_time==0)
-cflp_hl[1029,]
-### divide by number of gear
-which((cflp_hl$FISHED/cflp_hl$NUMGEAR)>24 & diff_time==0)
-cflp_hl[1008377,]
+cflp_hl[848505,]
+hist(cflp_hl$FISHED - as.numeric(diff_time))
+hist(cflp_hl$FISHED)
+hist(as.numeric(diff_time))
+# ### divide by number of gear
+# which((cflp_hl$FISHED/cflp_hl$NUMGEAR)>24 & diff_time==0)
+# cflp_hl[851504,]
 
 identical(which(cflp_hl$FISHED > diff_time),
           which(diff_time>24))
