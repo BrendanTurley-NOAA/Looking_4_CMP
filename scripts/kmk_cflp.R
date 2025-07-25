@@ -1,4 +1,6 @@
 
+rm(list=ls())
+gc()
 library(cmocean)
 library(dplyr)
 library(lubridate)
@@ -19,8 +21,8 @@ sz_shp <- vect('CFLP_StatGrid_2013_v20140210.shp') |>
   st_as_sf()
 sz_shp$AREA_FISHED <- sz_shp$SZ_ID
 
-# plot(kmk, border = 4, lwd = 2)
-# plot(world, add = T, col = 'gray50')
+plot(kmk, border = 4, lwd = 2)
+plot(world, add = T, col = 'gray50')
 # plot(st_geometry(sz_shp), add = T)
 
 natl_st <- c('ME', 'NH', 'MA', 'RI', 'CT', 'NY', 'NJ', 'DE', 'MD', 'VA')
@@ -68,7 +70,7 @@ units(diff_time) <- 'days'
 # abline(0, 1, lty = 5, col = 2)
 cflp_hl$days_away_corrected <- diff_time + 1
 rm(diff_time)
-
+gc()
 
 ### what does this do?
 # kmk_tot <- with(subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO'),
@@ -84,6 +86,33 @@ rm(diff_time)
 # gc()
 ### end
 
+
+### new try at this; Walter sorts by year and then total landings to get at the 80%
+vessel_yrs <- with(subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO',
+       select = c(LAND_YEAR, VESSEL_ID, REGION)),
+  aggregate(LAND_YEAR ~ VESSEL_ID + REGION, FUN = function(x) length(unique(x))))
+vessel_tot <- with(subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO',
+                          select = c(tot_kg, VESSEL_ID, REGION)),
+                   aggregate(tot_kg ~ VESSEL_ID + REGION, FUN = sum, na.rm = T))
+vessel_select <- merge(vessel_yrs, vessel_tot, by = c('VESSEL_ID', 'REGION'))
+vessel_select <- vessel_select[order(vessel_select$LAND_YEAR, vessel_select$tot_kg,
+                                     decreasing = T), ]
+gom_ves <- subset(vessel_select, REGION=='GOM')
+sa_ves <- subset(vessel_select, REGION=='SATL')
+gom_ves$cummulative <- cumsum(gom_ves$tot_kg)/sum(gom_ves$tot_kg)
+sa_ves$cummulative <- cumsum(sa_ves$tot_kg)/sum(sa_ves$tot_kg)
+gom_ves_id <- gom_ves$VESSEL_ID[which(gom_ves$cummulative<=.8)]
+sa_ves_id <- sa_ves$VESSEL_ID[which(sa_ves$cummulative<=.8)]
+kmk_ves <- union(gom_ves_id,sa_ves_id)
+
+cflp_hl_0 <- cflp_hl[is.element(cflp_hl$VESSEL_ID, kmk_ves), ] |>
+  subset(
+    NUMGEAR < quantile(cflp_hl$NUMGEAR, .995, na.rm = T) &
+      EFFORT < quantile(cflp_hl$EFFORT, .995, na.rm = T) &
+      FISHED < quantile(cflp_hl$FISHED, .995, na.rm = T)
+  )
+gc()
+cflp_hl_1 <- cflp_hl_0
 
 ### pull vessels landing the top 80% of KMK
 vessel_landings <- with(subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO'),
