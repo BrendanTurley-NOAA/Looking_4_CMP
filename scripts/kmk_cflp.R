@@ -499,7 +499,7 @@ abline(lm(SCHEDULE_NUMBER ~ LAND_YEAR,
 ### spatial footprint of trips over time
 
 cpue_yr_area_region <- aggregate(cpue ~ LAND_YEAR + AREA_FISHED + COMMON_NAME + REGION,
-                                 data = cflp_hl_0,
+                                 data = cflp_hl_1,
                                  median, na.rm = T)
 with(subset(cpue_yr_area_region, REGION=='GOM' &
               COMMON_NAME=='MACKERELS, KING AND CERO' &
@@ -512,8 +512,7 @@ boxplot(cpue ~ LAND_YEAR, data = subset(cpue_yr_area_region, REGION=='GOM' &
         pch = 16, lty = 1, varwidth = T, staplewex = 0, lwd = 2)
 
 boxplot(cpue ~ LAND_YEAR, data = subset(cpue_yr_area_region, REGION=='SATL' &
-                                          COMMON_NAME=='MACKERELS, KING AND CERO' &
-                                          LAND_YEAR>2012),
+                                          COMMON_NAME=='MACKERELS, KING AND CERO'),
         pch = 16, lty = 1, varwidth = T, staplewex = 0, lwd = 2)
 
 
@@ -534,8 +533,7 @@ par(mfrow = c(1,1), mar = c(4,4,1,1))
 plot(aggregate(AREA_FISHED ~ LAND_YEAR, 
                data = subset(cpue_yr_area_region,
                              REGION=='SATL' &
-                               COMMON_NAME=='MACKERELS, KING AND CERO' &
-                               LAND_YEAR>2012),
+                               COMMON_NAME=='MACKERELS, KING AND CERO'),
                length),
      typ = 'o',ylab = 'Number of areas fished', pch = 16)
 grid()
@@ -590,23 +588,23 @@ dev.off()
 
 ### aggregations
 cpue_yr_area <- aggregate(cpue ~ LAND_YEAR + AREA_FISHED + COMMON_NAME,
-                          data = cflp_hl_0,
+                          data = cflp_hl_1,
                           median, na.rm = T)
 
 land_yr_area <- aggregate(tot_kg ~ LAND_YEAR + AREA_FISHED + COMMON_NAME,
-                          data = cflp_hl_0,
+                          data = cflp_hl_1,
                           sum, na.rm = T)
 
 days_yr_area <- aggregate(FISHED ~ LAND_YEAR + AREA_FISHED + COMMON_NAME,
-                          data = cflp_hl_0,
+                          data = cflp_hl_1,
                           median, na.rm = T)
 
 ves_yr_area <- aggregate(VESSEL_ID ~ LAND_YEAR + AREA_FISHED + COMMON_NAME,
-                         data = cflp_hl_0,
+                         data = cflp_hl_1,
                          function(x) length(unique(x)))
 
 trp_yr_area <- aggregate(SCHEDULE_NUMBER ~ LAND_YEAR + AREA_FISHED + COMMON_NAME,
-                         data = cflp_hl_0,
+                         data = cflp_hl_1,
                          function(x) length(unique(x)))
 gc()
 ### 1x1 grid in use exclusively starting 2013
@@ -834,16 +832,16 @@ pal5 <- cmocean('rain')(length(brks5)-1)
 
 ### monthly
 # cpue_mth_area <- aggregate(cpue ~ LAND_YEAR + LAND_MONTH + AREA_FISHED + COMMON_NAME,
-#                            data = subset(cflp_hl_0, LAND_YEAR>2012),
+#                            data = subset(cflp_hl_1, LAND_YEAR>2012),
 #                            median, na.rm = T)
 cpue_mth_area <- aggregate(cpue ~ LAND_MONTH + AREA_FISHED,
-                           data = subset(cflp_hl_0, 
+                           data = subset(cflp_hl_1, 
                                          COMMON_NAME=='MACKERELS, KING AND CERO' &
                                            LAND_YEAR>2012),
                            median, na.rm = T)
 
 land_mth_area <- aggregate(tot_kg ~ LAND_MONTH + AREA_FISHED,
-                           data = subset(cflp_hl_0, 
+                           data = subset(cflp_hl_1, 
                                          COMMON_NAME=='MACKERELS, KING AND CERO' &
                                            LAND_YEAR>2012),
                            median, na.rm = T)
