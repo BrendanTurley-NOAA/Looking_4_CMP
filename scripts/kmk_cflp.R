@@ -38,11 +38,14 @@ cflp <- subset(cflp, LAND_YEAR<2024 & LAND_YEAR>1999 & CATCH_TYPE == 'CATCH') |>
            REGION == 'GOM' & is.element(ST_ABRV, gom_st))
 gc()
 
+
+
 ### pull out handlines only
 # table(cflp$GEAR)
 gear_keep <- c('H', 'E', 'TR')
 cflp_hl <- subset(cflp , is.element(cflp$GEAR, gear_keep)) |>
   subset(FLAG_MULTIGEAR==0 & FLAG_MULTIAREA==0)
+saveRDS(cflp_hl, 'cflp_gulfsa_temp.rds')
 gc()
 
 ### following methods by Walter & McCarthy 2014 (1993-2013SEDAR38-DW-10) 
@@ -91,11 +94,18 @@ gc()
 vessel_yrs <- with(subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO',
        select = c(LAND_YEAR, VESSEL_ID, REGION)),
   aggregate(LAND_YEAR ~ VESSEL_ID + REGION, FUN = function(x) length(unique(x))))
-vessel_tot <- with(subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO',
+vessel_tot <- with(subset(cflp_hl,
                           select = c(tot_kg, VESSEL_ID, REGION)),
                    aggregate(tot_kg ~ VESSEL_ID + REGION, FUN = sum, na.rm = T))
-vessel_select <- merge(vessel_yrs, vessel_tot, by = c('VESSEL_ID', 'REGION'))
-vessel_select <- vessel_select[order(vessel_select$LAND_YEAR, vessel_select$tot_kg,
+vessel_kmk_tot <- with(subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO',
+                          select = c(tot_kg, VESSEL_ID, REGION)),
+                   aggregate(tot_kg ~ VESSEL_ID + REGION, FUN = sum, na.rm = T)) |>
+  setNames(c("VESSEL_ID","REGION","kmk_tot_kg"))
+vessel_select <- merge(vessel_yrs, vessel_tot, by = c('VESSEL_ID', 'REGION')) |>
+  merge(vessel_kmk_tot, by = c('VESSEL_ID', 'REGION'))
+vessel_select$kmk_pro <- vessel_select$kmk_tot_kg / vessel_select$tot_kg
+vessel_select <- vessel_select[order(vessel_select$LAND_YEAR, vessel_select$kmk_tot_kg, 
+                                     vessel_select$kmk_pro,
                                      decreasing = T), ]
 gom_ves <- subset(vessel_select, REGION=='GOM')
 sa_ves <- subset(vessel_select, REGION=='SATL')
@@ -111,46 +121,48 @@ cflp_hl_0 <- cflp_hl[is.element(cflp_hl$VESSEL_ID, kmk_ves), ] |>
       EFFORT < quantile(cflp_hl$EFFORT, .995, na.rm = T) &
       FISHED < quantile(cflp_hl$FISHED, .995, na.rm = T)
   )
-gc()
 cflp_hl_1 <- cflp_hl_0
+rm(cflp, cflp_hl, cflp_hl_0, vessel_select, vessel_kmk_tot, vessel_yrs, vessel_tot)
+gc()
+saveRDS(cflp_hl_1, 'cflp_hl_1.rds')
 
-### pull vessels landing the top 80% of KMK
-vessel_landings <- with(subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO'),
-                        aggregate(tot_kg ~ VESSEL_ID + REGION + ST_ABRV, FUN = sum, na.rm = T))
-vessel_landings_else <- aggregate(tot_kg ~ VESSEL_ID + REGION + ST_ABRV, data = cflp_hl,
-                                  FUN = sum, na.rm = T)
-ves_land <- merge(vessel_landings, vessel_landings_else, by = c('VESSEL_ID', 'REGION', 'ST_ABRV')) |>
-  setNames(c('VESSEL_ID', 'REGION', 'ST_ABRV', 'kmk_tot_kg', 'all_tot_kg'))
-ves_land$kmk_prop <- ves_land$kmk_tot_kg / ves_land$all_tot_kg
+
+### pull vessels landing the top 80% of KMK; depreciated code wrongly interpreted
+# vessel_landings <- with(subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO'),
+#                         aggregate(tot_kg ~ VESSEL_ID + REGION + ST_ABRV, FUN = sum, na.rm = T))
+# vessel_landings_else <- aggregate(tot_kg ~ VESSEL_ID + REGION + ST_ABRV, data = cflp_hl,
+#                                   FUN = sum, na.rm = T)
+# ves_land <- merge(vessel_landings, vessel_landings_else, by = c('VESSEL_ID', 'REGION', 'ST_ABRV')) |>
+#   setNames(c('VESSEL_ID', 'REGION', 'ST_ABRV', 'kmk_tot_kg', 'all_tot_kg'))
+# ves_land$kmk_prop <- ves_land$kmk_tot_kg / ves_land$all_tot_kg
 
 # quantile(vessel_landings$tot_kg, seq(0,1,.1))
 # hist(vessel_landings$tot_kg)
 # quantile(ves_land$kmk_prop, seq(0,1,.1))
 # hist(ves_land$kmk_prop)
 
-cutoff1 <- aggregate(kmk_tot_kg ~ REGION + ST_ABRV, data = ves_land, quantile, .2) |>
-  setNames(c("REGION", "ST_ABRV", "cutoff1"))
-cutoff2 <- aggregate(kmk_prop ~ REGION + ST_ABRV, data = ves_land, quantile, .2) |>
-  setNames(c("REGION", "ST_ABRV", "cutoff2"))
+# cutoff1 <- aggregate(kmk_tot_kg ~ REGION + ST_ABRV, data = ves_land, quantile, .2) |>
+#   setNames(c("REGION", "ST_ABRV", "cutoff1"))
+# cutoff2 <- aggregate(kmk_prop ~ REGION + ST_ABRV, data = ves_land, quantile, .2) |>
+#   setNames(c("REGION", "ST_ABRV", "cutoff2"))
 
-ves_land <- merge(ves_land, cutoff1, by = c('REGION','ST_ABRV'), all.x = T) |>
-  merge(cutoff2, by = c('REGION','ST_ABRV'), all.x = T)
+# ves_land <- merge(ves_land, cutoff1, by = c('REGION','ST_ABRV'), all.x = T) |>
+#   merge(cutoff2, by = c('REGION','ST_ABRV'), all.x = T)
+# kmk_ves <- ves_land$VESSEL_ID[which(ves_land$kmk_tot_kg > ves_land$cutoff1 |
+#                                       ves_land$kmk_prop > ves_land$cutoff2)]
 
-kmk_ves <- ves_land$VESSEL_ID[which(ves_land$kmk_tot_kg > ves_land$cutoff1 |
-                                      ves_land$kmk_prop > ves_land$cutoff2)]
-
-cflp_hl_1 <- cflp_hl[is.element(cflp_hl$VESSEL_ID, kmk_ves), ] |>
-  subset(
-    NUMGEAR < quantile(cflp_hl$NUMGEAR, .995, na.rm = T) &
-      EFFORT < quantile(cflp_hl$EFFORT, .995, na.rm = T) &
-      FISHED < quantile(cflp_hl$FISHED, .995, na.rm = T)
-  )
-rm(ves_land, vessel_landings, vessel_landings_else, cutoff1, cutoff2)
-gc()
+# cflp_hl_1 <- cflp_hl[is.element(cflp_hl$VESSEL_ID, kmk_ves), ] |>
+#   subset(
+#     NUMGEAR < quantile(cflp_hl$NUMGEAR, .995, na.rm = T) &
+#       EFFORT < quantile(cflp_hl$EFFORT, .995, na.rm = T) &
+#       FISHED < quantile(cflp_hl$FISHED, .995, na.rm = T)
+#   )
+# rm(ves_land, vessel_landings, vessel_landings_else, cutoff1, cutoff2)
+# gc()
 ### end
 
 
-### pull vessels landing the top 80% of KMK; alternative
+### pull vessels landing the top 80% of KMK; alternative; depreciated code wrongly interpreted
 # vessel_landings <- with(subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO'),
 #                         aggregate(tot_kg ~ VESSEL_ID, FUN = sum, na.rm = T))
 # vessel_landings_else <- aggregate(tot_kg ~ VESSEL_ID, data = cflp_hl,
@@ -183,7 +195,7 @@ cpue_yr_reg <- aggregate(cpue ~ LAND_YEAR + REGION + COMMON_NAME,
 gc()
 
 with(subset(cpue_yr_reg, COMMON_NAME=='MACKERELS, KING AND CERO'),
-     plot(LAND_YEAR, cpue, typ = 'n'))
+     plot(LAND_YEAR, cpue, typ = 'n', xlab = 'year', ylab = 'CPUE (kg / hook-hours)'))
 with(subset(cpue_yr_reg, REGION=='GOM' & COMMON_NAME=='MACKERELS, KING AND CERO'),
      points(LAND_YEAR, cpue, typ = 'o', pch = 16))
 with(subset(cpue_yr_reg, REGION=='SATL' & COMMON_NAME=='MACKERELS, KING AND CERO'),
@@ -194,7 +206,7 @@ abline(h = with(subset(cpue_yr_reg, REGION=='GOM' & COMMON_NAME=='MACKERELS, KIN
 abline(h = with(subset(cpue_yr_reg, REGION=='SATL' & COMMON_NAME=='MACKERELS, KING AND CERO'),
                 mean(cpue)),
        col = 2, lty = 2)
-abline(v = 2013, col = 4, lty = 2)
+# abline(v = 2013, col = 4, lty = 2)
 grid()
 legend('topleft', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
 abline(lm(cpue ~ LAND_YEAR, 
@@ -208,7 +220,7 @@ abline(lm(cpue ~ LAND_YEAR,
 
 ### CPUE per state over time
 cpue_yr_st <- aggregate(cpue ~ LAND_YEAR + ST_ABRV + REGION + COMMON_NAME,
-                        data = cflp_hl_0,
+                        data = cflp_hl_1,
                         mean, na.rm = T)
 gc()
 
@@ -217,7 +229,7 @@ gulf <- c('AL', 'FL', 'LA', 'MS', 'TX')
 with(subset(cpue_yr_st, is.element(ST_ABRV, gulf) & 
               REGION=='GOM' &
               COMMON_NAME=='MACKERELS, KING AND CERO'),
-     plot(LAND_YEAR, cpue, typ = 'n'))
+     plot(LAND_YEAR, cpue, typ = 'n', xlab = 'year', ylab = 'CPUE (kg / hook-hours)'))
 for(i in 1:length(gulf)){
   with(subset(cpue_yr_st, ST_ABRV==gulf[i] & 
                 REGION=='GOM' &
@@ -232,7 +244,7 @@ satl <- c('FL', 'GA', 'NC', 'SC') #'NJ', 'NY', 'VA')
 with(subset(cpue_yr_st, is.element(ST_ABRV, satl) & 
               REGION=='SATL' &
               COMMON_NAME=='MACKERELS, KING AND CERO'),
-     plot(LAND_YEAR, cpue, typ = 'n'))
+     plot(LAND_YEAR, cpue, typ = 'n', xlab = 'year', ylab = 'CPUE (kg / hook-hours)'))
 for(i in 1:length(satl)){
   with(subset(cpue_yr_st, ST_ABRV==satl[i] & 
                 REGION=='SATL' &
@@ -244,41 +256,21 @@ legend('topleft',satl, lty=1, col=1:length(satl),bty = 'n', pch = 16, lwd = 2)
 ### end
 
 
-### none of these (hours, effort, numgear) are useful
-hrs_yr <- aggregate(FISHED ~ LAND_YEAR + REGION + COMMON_NAME,
-                     data = cflp_hl_1,
-                    mean, na.rm = T) #median value not informative
-
-num_yr <- aggregate(NUMGEAR ~ LAND_YEAR + REGION + COMMON_NAME,
-                    data = cflp_hl_1,
-                    mean, na.rm = T)
-
-eff_yr <- aggregate(EFFORT ~ LAND_YEAR + REGION + COMMON_NAME,
-                    data = cflp_hl_1,
-                    mean, na.rm = T)
-
-ves_yr <- aggregate(VESSEL_ID ~ LAND_YEAR + REGION + COMMON_NAME,
-                    data = cflp_hl_1,
-                    function(x) length(unique(x)))
-
-trps_yr <- aggregate(SCHEDULE_NUMBER ~ LAND_YEAR + REGION + COMMON_NAME,
-                    data = cflp_hl_1,
-                    function(x) length(unique(x)))
-
+### has the length of trips changed or have there been less days fished?
 days_yr <- aggregate(days_away_corrected ~ LAND_YEAR + REGION + COMMON_NAME,
-                    data = cflp_hl_1,
-                    mean, na.rm = T) #median value not informative
-
-ves_days_yr <- aggregate(days_away_corrected ~ LAND_YEAR + REGION + COMMON_NAME + VESSEL_ID,
                      data = cflp_hl_1,
                      mean, na.rm = T) #median value not informative
 
+ves_days_yr <- aggregate(days_away_corrected ~ LAND_YEAR + REGION + COMMON_NAME + VESSEL_ID,
+                         data = cflp_hl_1,
+                         mean, na.rm = T) #median value not informative
+
 days_yr_region <- with(subset(ves_days_yr, COMMON_NAME=='MACKERELS, KING AND CERO'),
-     aggregate(days_away_corrected ~ LAND_YEAR + REGION,
-               FUN = mean, na.rm = T))
-days_yr_region_sd <- with(subset(ves_days_yr, COMMON_NAME=='MACKERELS, KING AND CERO'),
                        aggregate(days_away_corrected ~ LAND_YEAR + REGION,
-                                 FUN = sd, na.rm = T))
+                                 FUN = mean, na.rm = T))
+days_yr_region_sd <- with(subset(ves_days_yr, COMMON_NAME=='MACKERELS, KING AND CERO'),
+                          aggregate(days_away_corrected ~ LAND_YEAR + REGION,
+                                    FUN = sd, na.rm = T))
 
 kmk_ufdays <- with(subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO'),
                    data.frame(d_day = yday(DEPART_DATE),
@@ -288,20 +280,20 @@ kmk_ufdays <- with(subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO'),
 
 
 test <- subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO', 
-       select = c(SCHEDULE_NUMBER, LAND_YEAR, REGION, DEPART_DATE, LAND_DATE)) |>
+               select = c(SCHEDULE_NUMBER, LAND_YEAR, REGION, DEPART_DATE, LAND_DATE)) |>
   setNames(c('trip','year','region','t.1','t.2'))
 test2 <- reshape(test, direction = "long", idvar = c('trip'), varying = list(names(test)[c(4,5)]))
 test2$jday <- yday(test2$t.1)
 
 fdays <- aggregate(jday ~ year + region, data = test2, function(x) length(unique(x)))
 
-plot(fdays$year, fdays$jday, typ = 'n')
+plot(fdays$year, fdays$jday, typ = 'n', xlab = 'year', ylab = 'Julian Days fished')
 with(subset(fdays, region=='GOM'),
      points(year, jday, typ = 'o', pch = 16))
 with(subset(fdays, region=='SATL'),
      points(year, jday, typ = 'o', pch = 16, col = 2))
-### end 
-
+grid()
+legend('bottomleft', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
 
 
 test <- subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO', 
@@ -313,7 +305,7 @@ test2$jday <- yday(test2$t.1)
 fdays <- aggregate(jday ~ year + region + st, data = test2, function(x) length(unique(x)))
 
 gulf <- c('AL', 'FL', 'LA', 'MS', 'TX')
-plot(fdays$year, fdays$jday, typ = 'n')
+plot(fdays$year, fdays$jday, typ = 'n', xlab = 'year', ylab = 'Julian Days fished')
 for(i in 1:length(gulf)){
   with(subset(fdays, st==gulf[i] & 
                 region=='GOM'),
@@ -323,7 +315,7 @@ grid()
 legend('topleft',gulf, lty=1, col=1:length(gulf),bty = 'n', pch = 16, lwd = 2)
 
 satl <- c('FL', 'GA', 'NC', 'SC')
-plot(fdays$year, fdays$jday, typ = 'n')
+plot(fdays$year, fdays$jday, typ = 'n', xlab = 'year', ylab = 'Julian Days fished')
 for(i in 1:length(satl)){
   with(subset(fdays, st==satl[i] & 
                 region=='SATL'),
@@ -334,102 +326,8 @@ legend('topleft',satl, lty=1, col=1:length(satl),bty = 'n', pch = 16, lwd = 2)
 
 
 
-with(subset(hrs_yr, COMMON_NAME=='MACKERELS, KING AND CERO'),
-     plot(LAND_YEAR, FISHED, typ = 'n'))
-grid()
-with(subset(hrs_yr, REGION=='GOM' &
-              COMMON_NAME=='MACKERELS, KING AND CERO'),
-     points(LAND_YEAR, FISHED, typ = 'o', pch = 16))
-with(subset(hrs_yr, REGION=='SATL' &
-              COMMON_NAME=='MACKERELS, KING AND CERO'),
-     points(LAND_YEAR, FISHED, typ = 'o', pch = 16, col = 2))
-abline(v = 2013, lty = 5)
-legend('topleft', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
-abline(lm(FISHED ~ LAND_YEAR,
-          data = subset(hrs_yr, REGION=='GOM' &
-                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 1)
-abline(lm(FISHED ~ LAND_YEAR,
-          data = subset(hrs_yr, REGION=='SATL' &
-                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 2)
-
-
-with(subset(eff_yr, COMMON_NAME=='MACKERELS, KING AND CERO'),
-     plot(LAND_YEAR, EFFORT, typ = 'n'))
-grid()
-with(subset(eff_yr, REGION=='GOM' &
-              COMMON_NAME=='MACKERELS, KING AND CERO'),
-     points(LAND_YEAR, EFFORT, typ = 'o', pch = 16))
-with(subset(eff_yr, REGION=='SATL' &
-              COMMON_NAME=='MACKERELS, KING AND CERO'),
-     points(LAND_YEAR, EFFORT, typ = 'o', pch = 16, col = 2))
-abline(v = 2013, lty = 5)
-legend('topleft', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
-abline(lm(EFFORT ~ LAND_YEAR,
-          data = subset(eff_yr, REGION=='GOM' &
-                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 1)
-abline(lm(EFFORT ~ LAND_YEAR,
-          data = subset(eff_yr, REGION=='SATL' &
-                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 2)
-
-with(subset(num_yr,COMMON_NAME=='MACKERELS, KING AND CERO'),
-     plot(LAND_YEAR, NUMGEAR, typ = 'n'))
-grid()
-with(subset(num_yr, REGION=='GOM' &
-              COMMON_NAME=='MACKERELS, KING AND CERO'),
-     points(LAND_YEAR, NUMGEAR, typ = 'o', pch = 16))
-with(subset(num_yr, REGION=='SATL' &
-              COMMON_NAME=='MACKERELS, KING AND CERO'),
-     points(LAND_YEAR, NUMGEAR, typ = 'o', pch = 16, col = 2))
-abline(v = 2013, lty = 5)
-legend('topleft', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
-abline(lm(NUMGEAR ~ LAND_YEAR,
-          data = subset(num_yr, REGION=='GOM' &
-                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 1)
-abline(lm(NUMGEAR ~ LAND_YEAR,
-          data = subset(num_yr, REGION=='SATL' &
-                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 2)
-
-
-with(subset(ves_yr, COMMON_NAME=='MACKERELS, KING AND CERO'),
-     plot(LAND_YEAR, VESSEL_ID, typ = 'n'))
-grid()
-with(subset(ves_yr, REGION=='GOM' &
-              COMMON_NAME=='MACKERELS, KING AND CERO'),
-     points(LAND_YEAR, VESSEL_ID, typ = 'o', pch = 16))
-with(subset(ves_yr, REGION=='SATL' &
-              COMMON_NAME=='MACKERELS, KING AND CERO'),
-     points(LAND_YEAR, VESSEL_ID, typ = 'o', pch = 16, col = 2))
-abline(v = 2013, lty = 5)
-legend('topright', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
-abline(lm(VESSEL_ID ~ LAND_YEAR, 
-          data = subset(ves_yr, REGION=='GOM' &
-                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 1)
-abline(lm(VESSEL_ID ~ LAND_YEAR, 
-          data = subset(ves_yr, REGION=='SATL' &
-                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 2)
-
-
-with(subset(trps_yr, COMMON_NAME=='MACKERELS, KING AND CERO'),
-     plot(LAND_YEAR, SCHEDULE_NUMBER, typ = 'n'))
-grid()
-with(subset(trps_yr, REGION=='GOM' &
-              COMMON_NAME=='MACKERELS, KING AND CERO'),
-     points(LAND_YEAR, SCHEDULE_NUMBER, typ = 'o', pch = 16))
-with(subset(trps_yr, REGION=='SATL' &
-              COMMON_NAME=='MACKERELS, KING AND CERO'),
-     points(LAND_YEAR, SCHEDULE_NUMBER, typ = 'o', pch = 16, col = 2))
-abline(v = 2013, lty = 5)
-legend('topleft', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
-abline(lm(SCHEDULE_NUMBER ~ LAND_YEAR, 
-          data = subset(trps_yr, REGION=='GOM' &
-                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 1)
-abline(lm(SCHEDULE_NUMBER ~ LAND_YEAR, 
-          data = subset(trps_yr, REGION=='SATL' &
-                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 2)
-
-
 with(subset(days_yr, COMMON_NAME=='MACKERELS, KING AND CERO'),
-     plot(LAND_YEAR, days_away_corrected, typ = 'n'))
+     plot(LAND_YEAR, days_away_corrected, typ = 'n', xlab = 'year', ylab = 'Length of trip (days)'))
 grid()
 with(subset(days_yr, REGION=='GOM' &
               COMMON_NAME=='MACKERELS, KING AND CERO'),
@@ -437,8 +335,8 @@ with(subset(days_yr, REGION=='GOM' &
 with(subset(days_yr, REGION=='SATL' &
               COMMON_NAME=='MACKERELS, KING AND CERO'),
      points(LAND_YEAR, days_away_corrected, typ = 'o', pch = 16, col = 2))
-abline(v = 2013, lty = 5)
-legend('topleft', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
+# abline(v = 2013, lty = 5)
+legend('topright', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
 abline(lm(days_away_corrected ~ LAND_YEAR,
           data = subset(days_yr, REGION=='GOM' &
                           COMMON_NAME=='MACKERELS, KING AND CERO')), col = 1)
@@ -472,6 +370,129 @@ abline(lm(days_away_corrected ~ LAND_YEAR,
           data = subset(days_yr_region_sd, REGION=='GOM')), col = 1)
 abline(lm(days_away_corrected ~ LAND_YEAR,
           data = subset(days_yr_region_sd, REGION=='SATL')), col = 2)
+### end 
+
+
+
+
+### none of these (hours, effort, numgear) are useful
+hrs_yr <- aggregate(FISHED ~ LAND_YEAR + REGION + COMMON_NAME,
+                     data = cflp_hl_1,
+                    mean, na.rm = T) #median value not informative
+
+num_yr <- aggregate(NUMGEAR ~ LAND_YEAR + REGION + COMMON_NAME,
+                    data = cflp_hl_1,
+                    mean, na.rm = T)
+
+eff_yr <- aggregate(EFFORT ~ LAND_YEAR + REGION + COMMON_NAME,
+                    data = cflp_hl_1,
+                    mean, na.rm = T)
+
+ves_yr <- aggregate(VESSEL_ID ~ LAND_YEAR + REGION + COMMON_NAME,
+                    data = cflp_hl_1,
+                    function(x) length(unique(x)))
+
+trps_yr <- aggregate(SCHEDULE_NUMBER ~ LAND_YEAR + REGION + COMMON_NAME,
+                    data = cflp_hl_1,
+                    function(x) length(unique(x)))
+
+
+
+with(subset(hrs_yr, COMMON_NAME=='MACKERELS, KING AND CERO'),
+     plot(LAND_YEAR, FISHED, typ = 'n', xlab = 'year', ylab = 'Hours fished'))
+grid()
+with(subset(hrs_yr, REGION=='GOM' &
+              COMMON_NAME=='MACKERELS, KING AND CERO'),
+     points(LAND_YEAR, FISHED, typ = 'o', pch = 16))
+with(subset(hrs_yr, REGION=='SATL' &
+              COMMON_NAME=='MACKERELS, KING AND CERO'),
+     points(LAND_YEAR, FISHED, typ = 'o', pch = 16, col = 2))
+# abline(v = 2013, lty = 5)
+legend('topleft', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
+abline(lm(FISHED ~ LAND_YEAR,
+          data = subset(hrs_yr, REGION=='GOM' &
+                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 1)
+abline(lm(FISHED ~ LAND_YEAR,
+          data = subset(hrs_yr, REGION=='SATL' &
+                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 2)
+
+
+with(subset(eff_yr, COMMON_NAME=='MACKERELS, KING AND CERO'),
+     plot(LAND_YEAR, EFFORT, typ = 'n', xlab = 'year', ylab = 'Hooks per line'))
+grid()
+with(subset(eff_yr, REGION=='GOM' &
+              COMMON_NAME=='MACKERELS, KING AND CERO'),
+     points(LAND_YEAR, EFFORT, typ = 'o', pch = 16))
+with(subset(eff_yr, REGION=='SATL' &
+              COMMON_NAME=='MACKERELS, KING AND CERO'),
+     points(LAND_YEAR, EFFORT, typ = 'o', pch = 16, col = 2))
+# abline(v = 2013, lty = 5)
+legend('topright', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
+abline(lm(EFFORT ~ LAND_YEAR,
+          data = subset(eff_yr, REGION=='GOM' &
+                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 1)
+abline(lm(EFFORT ~ LAND_YEAR,
+          data = subset(eff_yr, REGION=='SATL' &
+                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 2)
+
+with(subset(num_yr,COMMON_NAME=='MACKERELS, KING AND CERO'),
+     plot(LAND_YEAR, NUMGEAR, typ = 'n', xlab = 'year', ylab = 'Number of Gear'))
+grid()
+with(subset(num_yr, REGION=='GOM' &
+              COMMON_NAME=='MACKERELS, KING AND CERO'),
+     points(LAND_YEAR, NUMGEAR, typ = 'o', pch = 16))
+with(subset(num_yr, REGION=='SATL' &
+              COMMON_NAME=='MACKERELS, KING AND CERO'),
+     points(LAND_YEAR, NUMGEAR, typ = 'o', pch = 16, col = 2))
+# abline(v = 2013, lty = 5)
+legend('topright', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
+abline(lm(NUMGEAR ~ LAND_YEAR,
+          data = subset(num_yr, REGION=='GOM' &
+                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 1)
+abline(lm(NUMGEAR ~ LAND_YEAR,
+          data = subset(num_yr, REGION=='SATL' &
+                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 2)
+
+
+with(subset(ves_yr, COMMON_NAME=='MACKERELS, KING AND CERO'),
+     plot(LAND_YEAR, VESSEL_ID, typ = 'n', xlab = 'year', ylab = 'Number of vessels fishing'))
+grid()
+with(subset(ves_yr, REGION=='GOM' &
+              COMMON_NAME=='MACKERELS, KING AND CERO'),
+     points(LAND_YEAR, VESSEL_ID, typ = 'o', pch = 16))
+with(subset(ves_yr, REGION=='SATL' &
+              COMMON_NAME=='MACKERELS, KING AND CERO'),
+     points(LAND_YEAR, VESSEL_ID, typ = 'o', pch = 16, col = 2))
+# abline(v = 2013, lty = 5)
+legend('topright', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
+abline(lm(VESSEL_ID ~ LAND_YEAR, 
+          data = subset(ves_yr, REGION=='GOM' &
+                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 1)
+abline(lm(VESSEL_ID ~ LAND_YEAR, 
+          data = subset(ves_yr, REGION=='SATL' &
+                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 2)
+
+
+with(subset(trps_yr, COMMON_NAME=='MACKERELS, KING AND CERO'),
+     plot(LAND_YEAR, SCHEDULE_NUMBER, typ = 'n', xlab = 'year', ylab = 'Number of fishing trips'))
+grid()
+with(subset(trps_yr, REGION=='GOM' &
+              COMMON_NAME=='MACKERELS, KING AND CERO'),
+     points(LAND_YEAR, SCHEDULE_NUMBER, typ = 'o', pch = 16))
+with(subset(trps_yr, REGION=='SATL' &
+              COMMON_NAME=='MACKERELS, KING AND CERO'),
+     points(LAND_YEAR, SCHEDULE_NUMBER, typ = 'o', pch = 16, col = 2))
+# abline(v = 2013, lty = 5)
+legend('topright', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
+abline(lm(SCHEDULE_NUMBER ~ LAND_YEAR, 
+          data = subset(trps_yr, REGION=='GOM' &
+                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 1)
+abline(lm(SCHEDULE_NUMBER ~ LAND_YEAR, 
+          data = subset(trps_yr, REGION=='SATL' &
+                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 2)
+
+
+
 
 
 
