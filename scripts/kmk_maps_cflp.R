@@ -46,6 +46,9 @@ slope <- terrain(bathy, "slope", unit="radians")
 aspect <- terrain(bathy, "aspect", unit="radians")
 hill <- shade(slope, aspect, 45, 270)
 
+setwd("~/R_projects/Looking_4_CMP/figs")
+png('kmk_map.png', width = 10, height = 9, units = 'in', res = 300)
+par(mfrow = c(1,1), mar = c(4,4,1,1))
 plot(hill, col=grey(0:100/100), legend=FALSE, xlim = c(-98, -67), ylim = c(23, 42))
 # plot(bathy_l, col = alpha(cols, .5), breaks = brks,add = T, legend = F)
 plot(bathy, col = alpha(cols, .5), breaks = brks,add = T, legend = F)
@@ -53,5 +56,25 @@ contour(bathy, levels = c(-100), add = T, drawlabels = F)
 # plot(world, add = T, col = 'gray60')
 plot(states, add = T, col = 'gray60')
 plot(kmk, border = 'white', lwd = 2, add = T)
-plot(kmk, border = 'orange', lwd = 1, add = T)
+dev.off()
 
+
+
+setwd("C:/Users/brendan.turley/Downloads")
+kmk_am <- rast('Scomberomorus_cavalla.nc')
+kmk_nc <- nc_open('Scomberomorus_cavalla.nc')
+
+setwd("C:/Users/brendan.turley/Documents/data/shapefiles/GSHHS_shp/i")
+world <- vect('GSHHS_i_L1.shp')
+
+cols2 <- cmocean('rain')(60)
+# cols2 <- rocket(60, direction = -1)
+
+setwd("~/R_projects/Looking_4_CMP/figs")
+png('kmk_aquamap.png', width = 10, height = 9, units = 'in', res = 300)
+# plot(kmk_am, col = cols2)
+plot(kmk_am, col = cols2, 
+     main = 'KMK probability of occurrence',
+     xlim = c(-100, -74.5), ylim = c(17.5, 36))
+plot(world, add = T, col = 'gray80')
+dev.off()
