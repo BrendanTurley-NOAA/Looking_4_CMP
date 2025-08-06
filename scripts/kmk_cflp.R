@@ -30,22 +30,25 @@ satl_st <- c('FL', 'GA', 'SC', 'NC')
 gom_st <- c('FL', 'AL', 'MS', 'LA', 'TX')
 
 setwd("C:/Users/brendan.turley/Documents/CMP/data/cflp")
-cflp <- readRDS('CFLPkarnauskas.rds')
-# cflp_ne <- subset(cflp, LAND_YEAR<2024 & LAND_YEAR>1999 & CATCH_TYPE == 'CATCH') |>
-#   subset(REGION == 'NATL' & is.element(ST_ABRV, natl_st))
-cflp <- subset(cflp, LAND_YEAR<2024 & LAND_YEAR>1999 & CATCH_TYPE == 'CATCH') |>
-  subset(REGION == 'SATL' & is.element(ST_ABRV, satl_st) |
-           REGION == 'GOM' & is.element(ST_ABRV, gom_st))
-gc()
+# cflp <- readRDS('CFLPkarnauskas.rds')
+## cflp_ne <- subset(cflp, LAND_YEAR<2024 & LAND_YEAR>1999 & CATCH_TYPE == 'CATCH') |>
+##   subset(REGION == 'NATL' & is.element(ST_ABRV, natl_st))
+# cflp <- subset(cflp, LAND_YEAR<2024 & LAND_YEAR>1999 & CATCH_TYPE == 'CATCH') |>
+#   subset(REGION == 'SATL' & is.element(ST_ABRV, satl_st) |
+#            REGION == 'GOM' & is.element(ST_ABRV, gom_st))
+# gc()
 
 
 
 ### pull out handlines only
-# table(cflp$GEAR)
-gear_keep <- c('H', 'E', 'TR')
-cflp_hl <- subset(cflp , is.element(cflp$GEAR, gear_keep)) |>
-  subset(FLAG_MULTIGEAR==0 & FLAG_MULTIAREA==0)
-saveRDS(cflp_hl, 'cflp_gulfsa_temp.rds')
+## table(cflp$GEAR)
+# gear_keep <- c('H', 'E', 'TR')
+# cflp_hl <- subset(cflp , is.element(cflp$GEAR, gear_keep)) |>
+#   subset(FLAG_MULTIGEAR==0 & FLAG_MULTIAREA==0)
+# saveRDS(cflp_hl, 'cflp_gulfsa_temp.rds')
+# gc()
+
+cflp_hl <- readRDS('cflp_gulfsa_temp.rds')
 gc()
 
 ### following methods by Walter & McCarthy 2014 (1993-2013SEDAR38-DW-10) 
@@ -122,10 +125,53 @@ cflp_hl_0 <- cflp_hl[is.element(cflp_hl$VESSEL_ID, kmk_ves), ] |>
       FISHED < quantile(cflp_hl$FISHED, .995, na.rm = T)
   )
 cflp_hl_1 <- cflp_hl_0
+
 rm(cflp, cflp_hl, cflp_hl_0, vessel_select, vessel_kmk_tot, vessel_yrs, vessel_tot)
 gc()
 saveRDS(cflp_hl_1, 'cflp_hl_1.rds')
 
+
+
+### alternative
+### new try at this; Walter sorts by year and then total landings to get at the 80%
+vessel_yrs <- with(subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO',
+                          select = c(LAND_YEAR, VESSEL_ID, REGION, ST_ABRV)),
+                   aggregate(LAND_YEAR ~ VESSEL_ID + REGION + ST_ABRV, FUN = function(x) length(unique(x))))
+vessel_tot <- with(subset(cflp_hl,
+                          select = c(tot_kg, VESSEL_ID, REGION, ST_ABRV)),
+                   aggregate(tot_kg ~ VESSEL_ID + REGION + ST_ABRV, FUN = sum, na.rm = T))
+vessel_kmk_tot <- with(subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO',
+                              select = c(tot_kg, VESSEL_ID, REGION, ST_ABRV)),
+                       aggregate(tot_kg ~ VESSEL_ID + REGION + ST_ABRV, FUN = sum, na.rm = T)) |>
+  setNames(c("VESSEL_ID","REGION",'ST_ABRV',"kmk_tot_kg"))
+vessel_select <- merge(vessel_yrs, vessel_tot, by = c('VESSEL_ID', 'REGION','ST_ABRV')) |>
+  merge(vessel_kmk_tot, by = c('VESSEL_ID','REGION','ST_ABRV'))
+vessel_select$kmk_pro <- vessel_select$kmk_tot_kg / vessel_select$tot_kg
+vessel_select <- vessel_select[order(vessel_select$LAND_YEAR, vessel_select$kmk_tot_kg, 
+                                     vessel_select$kmk_pro,
+                                     decreasing = T), ]
+n <- 1
+ves_id <- list()
+for(i in c('GOM','SATL')){
+  ti <- subset(vessel_select, REGION==i)
+  if(i=='GOM') st_sl <- gom_st
+  if(i=='SATL') st_sl <- satl_st
+  for(j in st_sl){
+    tj <- subset(ti, ST_ABRV==j)
+    tj$cummulative <- cumsum(tj$tot_kg)/sum(tj$tot_kg)
+    ves_id[[n]] <- tj$VESSEL_ID[which(tj$cummulative<=.8)]
+    n <- n + 1
+  }
+}
+kmk_ves <- unique(unlist(ves_id))
+
+cflp_hl_0 <- cflp_hl[is.element(cflp_hl$VESSEL_ID, kmk_ves), ] |>
+  subset(
+    NUMGEAR < quantile(cflp_hl$NUMGEAR, .995, na.rm = T) &
+      EFFORT < quantile(cflp_hl$EFFORT, .995, na.rm = T) &
+      FISHED < quantile(cflp_hl$FISHED, .995, na.rm = T)
+  )
+cflp_hl_1 <- cflp_hl_0
 
 ### pull vessels landing the top 80% of KMK; depreciated code wrongly interpreted
 # vessel_landings <- with(subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO'),
@@ -322,7 +368,7 @@ for(i in 1:length(satl)){
        points(year, jday, typ = 'o', col = i, pch = 16, lwd = 2))
 }
 grid()
-legend('topleft',satl, lty=1, col=1:length(satl),bty = 'n', pch = 16, lwd = 2)
+legend('bottomleft',satl, lty=1, col=1:length(satl),bty = 'n', pch = 16, lwd = 2)
 
 
 
@@ -830,6 +876,45 @@ pal5 <- cmocean('rain')(length(brks5)-1)
 }
 
 
+
+### linear regression
+brk_pal <- function(dat , pal = 'balance', n = 40){
+  bnd <- min(ceiling(abs(range(dat,na.rm=T))))
+  brk <- seq(-bnd, bnd, by = bnd/(n/2))
+  # brk = pretty(dat, n=30)
+  pal <- cmocean('balance')(length(brk)-1)
+  return(list(brk,pal))
+}
+
+afs <- unique(kmk_shp$AREA_FISHED)
+out <- matrix(NA,length(afs),2) |> as.data.frame()
+n <- 1
+for(i in afs){
+  tmp <- subset(kmk_shp, AREA_FISHED==i)
+  res <- lm(cpue ~ LAND_YEAR, data = tmp) |>
+    summary()
+  out[n,] <- coef(res)[c(2,8)]
+  n <- n + 1
+}
+
+out <- cbind(out,afs) |> 
+  setNames(c('slope','p-val','AREA_FISHED')) |>
+  merge(sz_shp,
+        by = c('AREA_FISHED')) |> 
+  st_as_sf()
+length(which(out$`p-val`<.05))/nrow(out)
+out$slope_adj <- out$slope
+out$slope_adj <- ifelse(out$`p-val`>.05, NA, out$slope)
+
+hist(out$slope)
+hist(out$slope_adj)
+
+brks_pal1 <- brk_pal(out$slope)
+brks_pal2 <- brk_pal(out$slope_adj)
+
+plot(out['slope'], breaks = brks_pal1[[1]], pal = brks_pal1[[2]])
+plot(out['slope_adj'],  breaks = brks_pal2[[1]], pal = brks_pal2[[2]])
+
 ### monthly
 # cpue_mth_area <- aggregate(cpue ~ LAND_YEAR + LAND_MONTH + AREA_FISHED + COMMON_NAME,
 #                            data = subset(cflp_hl_1, LAND_YEAR>2012),
@@ -881,7 +966,7 @@ for(i in 1:12){
   kmk_tmp <- subset(kmk_shp, LAND_MONTH==i) %>%
     st_as_sf()
   # plot(gom)
-  plot(world, xlim = c(-98,-79), ylim = c(24, 31))
+  plot(world, xlim = c(-98,-73), ylim = c(24, 40))
   plot(kmk_tmp['cpue'], breaks = brks, pal = pal,
        add = T)
   mtext(i)
@@ -892,7 +977,8 @@ for(i in 1:12){
   kmk_tmp <- subset(kmk_shp, LAND_MONTH==i) %>%
     st_as_sf()
   # plot(gom)
-  plot(world, xlim = c(-98,-79), ylim = c(24, 31))
+  # plot(world, xlim = c(-98,-79), ylim = c(24, 31))
+  plot(world, xlim = c(-98,-73), ylim = c(24, 40))
   plot(kmk_tmp['tot_kg'], breaks = brks2, pal = pal2,
        add = T)
   mtext(i)
