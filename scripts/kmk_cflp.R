@@ -901,10 +901,10 @@ brk_pal <- function(dat , pal = 'balance', n = 40){
 kmk_tmp <- aggregate(cpue ~ LAND_YEAR + AREA_FISHED + COMMON_NAME + REGION,
                      data = cflp_hl_1,
                      median, na.rm = T) |>
-  subset(COMMON_NAME=='MACKERELS, KING AND CERO' &
-           REGION=='SATL') |>
+  subset(COMMON_NAME=='MACKERELS, KING AND CERO') |>
   merge(sz_shp,
         by = c('AREA_FISHED'))
+kmk_tmp <- kmk_tmp[order(kmk_tmp$LAND_YEAR),]
 
 
 afs <- unique(kmk_tmp$AREA_FISHED)
@@ -912,9 +912,15 @@ out <- matrix(NA,length(afs),2) |> as.data.frame()
 n <- 1
 for(i in afs){
   tmp <- subset(kmk_tmp, AREA_FISHED==i)
-  res <- lm(cpue ~ LAND_YEAR, data = tmp) |>
+  res <- lm(cpue ~ LAND_YEAR + offset(Shape_Area), data = tmp) |>
     summary()
   out[n,] <- coef(res)[c(2,8)]
+  # if(nrow(tmp) > 3){
+  #   res <- cor.test(tmp$cpue, tmp$LAND_YEAR,
+  #                   alternative = "two.sided",
+  #                   method = 'spearman')
+  #   out[n,] <- c(res$estimate, res$p.value)
+  # }
   n <- n + 1
 }
 
@@ -928,6 +934,7 @@ length(which(out$`p-val`<.05))/nrow(out)
 out$slope_adj <- out$slope
 out$slope_adj <- ifelse(out$`p-val`>.05, NA, out$slope)
 
+
 hist(out$slope)
 hist(out$slope_adj)
 
@@ -938,6 +945,13 @@ plot(out['slope'], breaks = brks_pal1[[1]], pal = brks_pal1[[2]])
 plot(out['slope_adj'],  breaks = brks_pal2[[1]], pal = brks_pal2[[2]])
 
 
+
+plot(cpue ~ LAND_YEAR, data = kmk_tmp, typ = 'n')
+for(i in afs){
+  tmp <- subset(kmk_tmp, AREA_FISHED==i)
+  points(cpue ~ LAND_YEAR, data = tmp,
+         typ = 'l')
+}
 
 
 
