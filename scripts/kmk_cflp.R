@@ -916,14 +916,22 @@ kmk_tmp <- kmk_tmp[order(kmk_tmp$LAND_YEAR),]
 
 
 afs <- unique(kmk_tmp$AREA_FISHED)
-out <- matrix(NA,length(afs),2) |> as.data.frame()
+lm_cpue <- lm_landings  <- lm_effort <- matrix(NA,length(afs),3) |> as.data.frame()
 n <- 1
 for(i in afs){
   tmp <- subset(kmk_tmp, AREA_FISHED==i)
   if(length(unique(tmp$LAND_YEAR)) > 3){
-    res <- lm(tot_kg ~ LAND_YEAR, data = tmp) |>
+    res1 <- lm(cpue ~ LAND_YEAR + LAND_MONTH, data = tmp) |>
       summary()
-    out[n,] <- coef(res)[c(2,8)]
+    lm_cpue[n,] <- c(coef(res1)[c(2,8)],res1$adj.r.squared)
+    
+    res2 <- lm(tot_kg ~ LAND_YEAR + LAND_MONTH, data = tmp) |>
+      summary()
+    lm_landings[n,] <- c(coef(res2)[c(2,8)],res2$adj.r.squared)
+    
+    res3 <- lm(pue ~ LAND_YEAR + LAND_MONTH, data = tmp) |>
+      summary()
+    lm_effort[n,] <- c(coef(res3)[c(2,8)],res3$adj.r.squared)
   }
   # if(nrow(tmp) > 3){
   #   res <- cor.test(tmp$cpue, tmp$LAND_YEAR,
@@ -934,34 +942,84 @@ for(i in afs){
   n <- n + 1
 }
 
-out <- cbind(out,afs) |> 
-  setNames(c('slope','p-val','AREA_FISHED')) |>
+out <- cbind(lm_cpue, lm_landings, lm_effort, afs) |> 
+  setNames(c('cpue_slope','cpue_p','cpue_r2',
+             'tot_kg_slope','tot_kg_p','tot_kg_r2',
+             'effort_slope','effort_p','effort_r2',
+             'AREA_FISHED')) |>
   merge(sz_shp,
         by = c('AREA_FISHED')) |> 
   st_as_sf() |>
   st_make_valid()
-out$`p-val`[which(is.nan(out$`p-val`) & !is.na(out$slope))] <- 0
-length(which(out$`p-val`<.05))/nrow(out)
-out$slope_adj <- out$slope
-out$slope_adj <- ifelse(out$`p-val`>.05, NA, out$slope)
 
-hist(out$slope, breaks = pretty(out$slope, n = 20))
-hist(out$slope_adj, breaks = pretty(out$slope_adj, n = 20))
+### cpue lm
+out$cpue_slope_adj <- out$cpue_slope
+out$cpue_slope_adj <- ifelse(out$cpue_p>.05, NA, out$cpue_slope)
 
-brks_pal1 <- brk_pal(out$slope)
-out$slope2 <- ifelse(out$slope > brks_pal1[[3]], brks_pal1[[3]],
-                    ifelse(out$slope < (-brks_pal1[[3]]), -brks_pal1[[3]],
-                           out$slope))
-brks_pal2 <- brk_pal(out$slope_adj)
-out$slope_adj2 <- ifelse(out$slope_adj > brks_pal2[[3]], brks_pal1[[3]],
-                     ifelse(out$slope_adj < (-brks_pal2[[3]]), -brks_pal2[[3]],
-                            out$slope_adj))
+brks_pal1 <- brk_pal(out$cpue_slope)
+out$cpue_slope2 <- ifelse(out$cpue_slope > brks_pal1[[3]], brks_pal1[[3]],
+                    ifelse(out$cpue_slope < (-brks_pal1[[3]]), -brks_pal1[[3]],
+                           out$cpue_slope))
+brks_pal2 <- brk_pal(out$cpue_slope_adj)
+out$cpue_slope_adj2 <- ifelse(out$cpue_slope_adj > brks_pal2[[3]], brks_pal2[[3]],
+                     ifelse(out$cpue_slope_adj < (-brks_pal2[[3]]), -brks_pal2[[3]],
+                            out$cpue_slope_adj))
 
-plot(out['slope2'], breaks = brks_pal1[[1]], pal = brks_pal1[[2]], reset = F)
-text(st_coordinates(st_centroid(out)), labels = round(out$slope,2), cex = .5)
+### tot kg lm
+out$tot_kg_slope_adj <- out$tot_kg_slope
+out$tot_kg_slope_adj <- ifelse(out$tot_kg_p>.05, NA, out$tot_kg_slope)
 
-plot(out['slope_adj2'],  breaks = brks_pal2[[1]], pal = brks_pal2[[2]], reset = F)
-text(st_coordinates(st_centroid(out)), labels = round(out$slope_adj,2), cex = .5)
+brks_pal3 <- brk_pal(out$tot_kg_slope)
+out$tot_kg_slope2 <- ifelse(out$tot_kg_slope > brks_pal3[[3]], brks_pal3[[3]],
+                          ifelse(out$tot_kg_slope < (-brks_pal3[[3]]), -brks_pal3[[3]],
+                                 out$tot_kg_slope))
+brks_pal4 <- brk_pal(out$tot_kg_slope_adj)
+out$tot_kg_slope_adj2 <- ifelse(out$tot_kg_slope_adj > brks_pal4[[3]], brks_pal4[[3]],
+                              ifelse(out$tot_kg_slope_adj < (-brks_pal4[[3]]), -brks_pal4[[3]],
+                                     out$tot_kg_slope_adj))
+
+### effort lm
+out$effort_slope_adj <- out$effort_slope
+out$effort_slope_adj <- ifelse(out$effort_p>.05, NA, out$effort_slope)
+
+brks_pal5 <- brk_pal(out$effort_slope)
+out$effort_slope2 <- ifelse(out$effort_slope > brks_pal5[[3]], brks_pal5[[3]],
+                          ifelse(out$effort_slope < (-brks_pal5[[3]]), -brks_pal5[[3]],
+                                 out$effort_slope))
+brks_pal6 <- brk_pal(out$effort_slope_adj)
+out$effort_slope_adj2 <- ifelse(out$effort_slope_adj > brks_pal6[[3]], brks_pal6[[3]],
+                              ifelse(out$effort_slope_adj < (-brks_pal6[[3]]), -brks_pal6[[3]],
+                                     out$effort_slope_adj))
+
+### plots
+
+length(which(out$cpue_p<=.05))/nrow(out)
+length(which(out$tot_kg_p<=.05))/nrow(out)
+length(which(out$effort_p<=.05))/nrow(out)
+
+
+plot(out['cpue_slope2'], breaks = brks_pal1[[1]], pal = brks_pal1[[2]], reset = F, key.pos = 4)
+text(st_coordinates(st_centroid(out)), labels = round(out$cpue_slope,2), cex = .7)
+
+plot(out['cpue_slope_adj2'],  breaks = brks_pal2[[1]], pal = brks_pal2[[2]], reset = F, key.pos = 4)
+text(st_coordinates(st_centroid(out)), labels = round(out$cpue_slope_adj,2), cex = .7)
+
+plot(out['tot_kg_slope2'], breaks = brks_pal3[[1]], pal = brks_pal3[[2]], reset = F, key.pos = 4)
+text(st_coordinates(st_centroid(out)), labels = round(out$tot_kg_slope,2), cex = .7)
+
+plot(out['tot_kg_slope_adj2'],  breaks = brks_pal4[[1]], pal = brks_pal4[[2]], reset = F, key.pos = 4)
+text(st_coordinates(st_centroid(out)), labels = round(out$tot_kg_slope_adj,2), cex = .7)
+
+plot(out['effort_slope2'], breaks = brks_pal5[[1]], pal = brks_pal5[[2]], reset = F, key.pos = 4)
+text(st_coordinates(st_centroid(out)), labels = round(out$effort_slope,2), cex = .7)
+
+plot(out['effort_slope_adj2'],  breaks = brks_pal6[[1]], pal = brks_pal6[[2]], reset = F, key.pos = 4)
+text(st_coordinates(st_centroid(out)), labels = round(out$effort_slope_adj,2), cex = .7)
+
+plot(out['cpue_r2'])
+plot(out['tot_kg_r2'])
+plot(out['effort_r2'])
+
 
 
 #### spatial monthly ####-------------------------------------------------------
