@@ -33,19 +33,20 @@ gom_st <- c('FL', 'AL', 'MS', 'LA', 'TX')
 setwd("C:/Users/brendan.turley/Documents/CMP/data/cflp")
 
 #### read data and subset ####--------------------------------------------------
-# cflp <- readRDS('CFLPkarnauskas.rds')
-# # cflp_ne <- subset(cflp, LAND_YEAR<2024 & LAND_YEAR>1999 & CATCH_TYPE == 'CATCH') |>
-# #   subset(REGION == 'NATL' & is.element(ST_ABRV, natl_st))
-# cflp <- subset(cflp, LAND_YEAR<2024 & LAND_YEAR>1999 & CATCH_TYPE == 'CATCH') |>
-#   subset(REGION == 'SATL' & is.element(ST_ABRV, satl_st) |
-#            REGION == 'GOM' & is.element(ST_ABRV, gom_st))
-# gc()
+cflp <- readRDS('CFLPkarnauskas.rds')
+# cflp_ne <- subset(cflp, LAND_YEAR<2024 & LAND_YEAR>1999 & CATCH_TYPE == 'CATCH') |>
+#   subset(REGION == 'NATL' & is.element(ST_ABRV, natl_st))
+cflp <- subset(cflp, LAND_YEAR<2024 & LAND_YEAR>1999 & CATCH_TYPE == 'CATCH') |>
+  subset(REGION == 'SATL' & is.element(ST_ABRV, satl_st) |
+           REGION == 'GOM' & is.element(ST_ABRV, gom_st))
+gc()
 
 ### pull out handlines only
-## table(cflp$GEAR)
+table(cflp$GEAR)
 # gear_keep <- c('H', 'E', 'TR')
-# cflp_hl <- subset(cflp , is.element(cflp$GEAR, gear_keep)) |>
-#   subset(FLAG_MULTIGEAR==0 & FLAG_MULTIAREA==0)
+gear_keep <- c('TR')
+cflp_hl <- subset(cflp , is.element(cflp$GEAR, gear_keep)) |>
+  subset(FLAG_MULTIGEAR==0 & FLAG_MULTIAREA==0)
 # saveRDS(cflp_hl, 'cflp_gulfsa_temp.rds')
 ## cflp_hl <- readRDS('cflp_gulfsa_temp.rds')
 # gc()
@@ -54,66 +55,66 @@ setwd("C:/Users/brendan.turley/Documents/CMP/data/cflp")
 ## following methods by Walter & McCarthy 2014 (1993-2013SEDAR38-DW-10)
 ## CPUE = total kilograms of king mackerel/(number of lines fished*number of hooks per line*total hours fished)
 ## total whole pounds seems most appropriate; other 2 have lots of zeros
-# cflp_hl$tot_kg <- cflp_hl$TOTAL_WHOLE_POUNDS / 2.205
-# cflp_hl$pue <- (cflp_hl$NUMGEAR * cflp_hl$EFFORT * cflp_hl$FISHED)
-# cflp_hl$cpue <- cflp_hl$tot_kg / cflp_hl$pue # kg catch per number of hooks X hours
-# cflp_hl$cpue <- ifelse(is.infinite(cflp_hl$cpue), NA, cflp_hl$cpue)
-# 
-# ### correct days_away
-# diff_time <- (cflp_hl$LAND_DATE - cflp_hl$DEPART_DATE)
-# units(diff_time) <- 'days'
-# cflp_hl$days_away_corrected <- round(diff_time + 1)
-# rm(diff_time)
-# gc()
-# ### end
+cflp_hl$tot_kg <- cflp_hl$TOTAL_WHOLE_POUNDS / 2.205
+cflp_hl$pue <- (cflp_hl$NUMGEAR * cflp_hl$EFFORT * cflp_hl$FISHED)
+cflp_hl$cpue <- cflp_hl$tot_kg / cflp_hl$pue # kg catch per number of hooks X hours
+cflp_hl$cpue <- ifelse(is.infinite(cflp_hl$cpue), NA, cflp_hl$cpue)
+
+### correct days_away
+diff_time <- (cflp_hl$LAND_DATE - cflp_hl$DEPART_DATE)
+units(diff_time) <- 'days'
+cflp_hl$days_away_corrected <- round(diff_time + 1)
+rm(diff_time)
+gc()
+### end
 
 
 #### pull vessels landing the top 80% of KMK ####-------------------------------
-### alternative; this sorts by region and state
-### new try at this; Walter sorts by year and then total landings to get at the 80%
-# vessel_yrs <- with(subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO',
-#                           select = c(LAND_YEAR, VESSEL_ID, REGION, ST_ABRV)),
-#                    aggregate(LAND_YEAR ~ VESSEL_ID + REGION + ST_ABRV,
-#                              FUN = function(x) length(unique(x))))
-# vessel_tot <- with(subset(cflp_hl,
-#                           select = c(tot_kg, VESSEL_ID, REGION, ST_ABRV)),
-#                    aggregate(tot_kg ~ VESSEL_ID + REGION + ST_ABRV, FUN = sum, na.rm = T))
-# vessel_kmk_tot <- with(subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO',
-#                               select = c(tot_kg, VESSEL_ID, REGION, ST_ABRV)),
-#                        aggregate(tot_kg ~ VESSEL_ID + REGION + ST_ABRV, FUN = sum, na.rm = T)) |>
-#   setNames(c("VESSEL_ID","REGION",'ST_ABRV',"kmk_tot_kg"))
-# vessel_select <- merge(vessel_yrs, vessel_tot,
-#                        by = c('VESSEL_ID', 'REGION','ST_ABRV')) |>
-#   merge(vessel_kmk_tot, by = c('VESSEL_ID','REGION','ST_ABRV'))
-# vessel_select$kmk_pro <- vessel_select$kmk_tot_kg / vessel_select$tot_kg
-# vessel_select <- vessel_select[order(vessel_select$LAND_YEAR,
-#                                      vessel_select$kmk_tot_kg,
-#                                      vessel_select$kmk_pro,
-#                                      decreasing = T), ]
-# n <- 1
-# ves_id <- list()
-# for(i in c('GOM','SATL')){
-#   ti <- subset(vessel_select, REGION==i)
-#   if(i=='GOM') st_sl <- gom_st
-#   if(i=='SATL') st_sl <- satl_st
-#   for(j in st_sl){
-#     tj <- subset(ti, ST_ABRV==j)
-#     tj$cummulative <- cumsum(tj$tot_kg)/sum(tj$tot_kg)
-#     ves_id[[n]] <- tj$VESSEL_ID[which(tj$cummulative<=.8)]
-#     n <- n + 1
-#   }
-# }
-# kmk_ves <- unique(unlist(ves_id))
-# 
-# cflp_hl_0 <- cflp_hl[is.element(cflp_hl$VESSEL_ID, kmk_ves), ] |>
-#   subset(
-#     NUMGEAR < quantile(cflp_hl$NUMGEAR, .995, na.rm = T) &
-#       EFFORT < quantile(cflp_hl$EFFORT, .995, na.rm = T) &
-#       FISHED < quantile(cflp_hl$FISHED, .995, na.rm = T) &
-#       tot_kg < quantile(cflp_hl$tot_kg, .995, na.rm = T) &
-#       days_away_corrected < quantile(cflp_hl$days_away_corrected, .995, na.rm = T)
-#   )
-# cflp_hl_1 <- cflp_hl_0
+### this sorts by region and state
+### Walter sorts by year and then total landings to get at the 80%
+vessel_yrs <- with(subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO',
+                          select = c(LAND_YEAR, VESSEL_ID, REGION, ST_ABRV)),
+                   aggregate(LAND_YEAR ~ VESSEL_ID + REGION + ST_ABRV,
+                             FUN = function(x) length(unique(x))))
+vessel_tot <- with(subset(cflp_hl,
+                          select = c(tot_kg, VESSEL_ID, REGION, ST_ABRV)),
+                   aggregate(tot_kg ~ VESSEL_ID + REGION + ST_ABRV, FUN = sum, na.rm = T))
+vessel_kmk_tot <- with(subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO',
+                              select = c(tot_kg, VESSEL_ID, REGION, ST_ABRV)),
+                       aggregate(tot_kg ~ VESSEL_ID + REGION + ST_ABRV, FUN = sum, na.rm = T)) |>
+  setNames(c("VESSEL_ID","REGION",'ST_ABRV',"kmk_tot_kg"))
+vessel_select <- merge(vessel_yrs, vessel_tot,
+                       by = c('VESSEL_ID', 'REGION','ST_ABRV')) |>
+  merge(vessel_kmk_tot, by = c('VESSEL_ID','REGION','ST_ABRV'))
+vessel_select$kmk_pro <- vessel_select$kmk_tot_kg / vessel_select$tot_kg
+vessel_select <- vessel_select[order(vessel_select$LAND_YEAR,
+                                     vessel_select$kmk_tot_kg,
+                                     vessel_select$kmk_pro,
+                                     decreasing = T), ]
+n <- 1
+ves_id <- list()
+for(i in c('GOM','SATL')){
+  ti <- subset(vessel_select, REGION==i)
+  if(i=='GOM') st_sl <- gom_st
+  if(i=='SATL') st_sl <- satl_st
+  for(j in st_sl){
+    tj <- subset(ti, ST_ABRV==j)
+    tj$cummulative <- cumsum(tj$tot_kg)/sum(tj$tot_kg)
+    ves_id[[n]] <- tj$VESSEL_ID[which(tj$cummulative<=.8)]
+    n <- n + 1
+  }
+}
+kmk_ves <- unique(unlist(ves_id))
+
+cflp_hl_0 <- cflp_hl[is.element(cflp_hl$VESSEL_ID, kmk_ves), ] |>
+  subset(
+    NUMGEAR < quantile(cflp_hl$NUMGEAR, .995, na.rm = T) &
+      EFFORT < quantile(cflp_hl$EFFORT, .995, na.rm = T) &
+      FISHED < quantile(cflp_hl$FISHED, .995, na.rm = T) &
+      tot_kg < quantile(cflp_hl$tot_kg, .995, na.rm = T) &
+      days_away_corrected < quantile(cflp_hl$days_away_corrected, .995, na.rm = T)
+  )
+cflp_hl_1 <- cflp_hl_0
 # 
 # rm(cflp, cflp_hl, cflp_hl_0, vessel_select, vessel_kmk_tot, vessel_yrs, vessel_tot, ves_id)
 # saveRDS(cflp_hl_1, 'cflp_hl_1.rds')
@@ -878,7 +879,7 @@ pal5 <- cmocean('rain')(length(brks5)-1)
   dev.off()
   
   setwd("~/R_projects/misc-noaa-scripts/figs")
-  png('kmk_hrs_yr_cb.png', width = 1.5, height = 7, units = 'in', res = 300)
+  png('kmk_trp_yr_cb.png', width = 1.5, height = 7, units = 'in', res = 300)
   par(mar = c(1,1,1,4))
   image(1, seq(min(brks5)+1,max(brks5)-1,2), 
         t(as.matrix(seq(min(brks5)+1,max(brks5)-1,2))),
@@ -1069,7 +1070,8 @@ brks2 <- seq(0, 1000, 50)
 # pal <- cmocean('thermal')(length(brks)-1)
 pal2 <- rev(mako(length(brks2)-1))
 
-par(mfrow=c(4,3))
+
+par(mfrow=c(4,3), mar = c(1,1,1,4))
 for(i in 1:12){
   kmk_tmp <- subset(kmk_shp, LAND_MONTH==i) %>%
     st_as_sf()
@@ -1080,7 +1082,7 @@ for(i in 1:12){
   mtext(i)
 }
 
-par(mfrow=c(4,3))
+par(mfrow=c(4,3), mar = c(1,1,1,4))
 for(i in 1:12){
   kmk_tmp <- subset(kmk_shp, LAND_MONTH==i) %>%
     st_as_sf()
@@ -1096,14 +1098,12 @@ for(i in 1:12){
 
 ### time series
 
-
-
 cpue_mth_st <- aggregate(cpue ~ LAND_YEAR + LAND_MONTH + ST_ABRV + REGION,
                            data = subset(cflp_hl_1, 
                                          COMMON_NAME=='MACKERELS, KING AND CERO'),
                            median, na.rm = T)
 
-par(mfrow=c(4,3))
+par(mfrow=c(4,3), mar = c(3,3,1,4))
 for(i in 1:12){
   kmk_tmp <- subset(cpue_mth_st, LAND_MONTH==i &
                       REGION=='SATL')
@@ -1118,7 +1118,7 @@ for(i in 1:12){
 }
 
 
-par(mfrow=c(4,3))
+par(mfrow=c(4,3), mar = c(3,3,1,4))
 for(i in 1:12){
   kmk_tmp <- subset(cpue_mth_st, LAND_MONTH==i &
                       REGION=='GOM')
@@ -1144,98 +1144,5 @@ quantile(subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO', select = 'cp
          na.rm = T, seq(0,1,.01))
 
 
-kmk <- which(cflp$COMMON_NAME=='MACKERELS, KING AND CERO')
 
-cflp_kmk <- cflp[kmk, ]
-kmk_land_agg <- aggregate(TOTAL_WHOLE_POUNDS ~ LAND_YEAR + REGION, 
-                          data = cflp_kmk,
-                          sum, na.rm = T)
-
-plot(kmk_land_agg$LAND_YEAR, kmk_land_agg$TOTAL_WHOLE_POUNDS, typ = 'n')
-with(subset(kmk_land_agg, REGION=='GOM'),
-     points(LAND_YEAR, TOTAL_WHOLE_POUNDS, typ = 'o'))
-with(subset(kmk_land_agg, REGION=='SATL'),
-     points(LAND_YEAR, TOTAL_WHOLE_POUNDS, typ = 'o', col = 2))
-abline(h = with(subset(kmk_land_agg, REGION=='GOM'), mean(TOTAL_WHOLE_POUNDS)),
-       lty = 5)
-abline(h = with(subset(kmk_land_agg, REGION=='SATL'), mean(TOTAL_WHOLE_POUNDS)),
-       col = 2, lty = 5)
-
-kmk_land_agg <- aggregate(TOTAL_WHOLE_POUNDS ~ LAND_YEAR + ST_ABRV, 
-                          data = cflp_kmk,
-                          sum, na.rm = T)
-aggregate(TOTAL_WHOLE_POUNDS ~ ST_ABRV, 
-          data = cflp_kmk,
-          sum, na.rm = T)
-
-states <- sort(unique(kmk_land_agg$ST_ABRV))
-plot(kmk_land_agg$LAND_YEAR, kmk_land_agg$TOTAL_WHOLE_POUNDS, typ = 'n')
-for(i in 1:length(states)){
-  with(subset(kmk_land_agg, ST_ABRV==states[i]),
-       points(LAND_YEAR, TOTAL_WHOLE_POUNDS, typ = 'o', col = i, pch = 16, lwd = 2))
-}
-legend('topleft',states, lty=1, col=1:length(states),bty = 'n', pch = 16, lwd = 2)
-
-
-kmk_land_agg <- aggregate(TOTAL_WHOLE_POUNDS ~ AREA_FISHED + LAND_YEAR, 
-                          data = cflp_kmk,
-                          sum, na.rm = T)
-
-### looking for unique trip identifiers; SCHEDULE_NUMBER seems to fit
-cflp[cflp$SCHEDULE_NUMBER==1001335, ]
-trips_keep <- is.element(cflp$SCHEDULE_NUMBER, cflp$SCHEDULE_NUMBER[kmk])
-cflp_sub1 <- cflp[trips_keep, ]
-
-
-### Walter & McCarthy 2014 (1993-2013SEDAR38-DW-10) used handlines only fished in one area and with one gear
-### but each row in the data have gear/effort listed, so maybe I can get by with only fished in one area
-### only one area
-trip_area_agg <- aggregate(AREA_FISHED ~ SCHEDULE_NUMBER, data = cflp_sub1,
-                           function(x) length(unique(x)))
-length(which(trip_area_agg$AREA_FISHED==1))/nrow(trip_area_agg)
-### only one gear
-trip_gear_agg <- aggregate(GEAR ~ SCHEDULE_NUMBER, data = cflp_sub1,
-                           function(x) length(unique(x)))
-length(which(trip_gear_agg$GEAR==1))/nrow(trip_gear_agg)
-### only one gear & one area
-trip_agg <- aggregate(cbind(AREA_FISHED, GEAR) ~ SCHEDULE_NUMBER, data = cflp_sub1,
-                      function(x) length(unique(x)))
-length(which(trip_agg$GEAR==1 & trip_agg$AREA_FISHED==1))/nrow(trip_agg)
-### only one gear & one area
-trip_agg2 <- aggregate(cbind(FLAG_MULTIAREA, FLAG_MULTIGEAR) ~ SCHEDULE_NUMBER, data = cflp_sub1,
-                       function(x) (unique(x)))
-length(which(trip_agg2$FLAG_MULTIAREA==0 & trip_agg2$FLAG_MULTIGEAR==0))/nrow(trip_agg2)
-
-length(which(cflp_sub1$FLAG_MULTIAREA==0 & cflp_sub1$FLAG_MULTIGEAR==0))
-length(unique(cflp_sub1$SCHEDULE_NUMBER[which(cflp_sub1$FLAG_MULTIAREA==0 & cflp_sub1$FLAG_MULTIGEAR==0)]))
-
-### kmk only
-trip_spp_agg <- aggregate(COMMON_NAME ~ SCHEDULE_NUMBER, data = cflp_sub1,
-                          function(x) length(unique(x)))
-kmk_only <- trip_spp_agg$SCHEDULE_NUMBER[which(trip_spp_agg$COMMON_NAME==1)]
-
-kmk_trips <- cflp[is.element(cflp$SCHEDULE_NUMBER, kmk_only), ]
-kmk_trips <- cflp[kmk, ]
-table(kmk_trips$REGION)
-table(kmk_trips$AREA_FISHED, kmk_trips$REGION)
-table(kmk_trips$LAND_YEAR, kmk_trips$REGION)
-table(kmk_trips$LAND_YEAR, kmk_trips$ST_ABRV)
-table(kmk_trips$LAND_MONTH, kmk_trips$ST_ABRV)
-table(kmk_trips$GEAR)
-table(kmk_trips$GEAR_FIN_NAME)
-
-barplot(table(kmk_trips$LAND_YEAR))
-barplot(table(kmk_trips$LAND_MONTH))
-
-
-kmk_yr_region <- aggregate(TOTAL_WHOLE_POUNDS ~ LAND_YEAR + REGION, 
-                           data = kmk_trips, sum, na.rm = T)
-
-plot(kmk_yr_region$LAND_YEAR, kmk_yr_region$TOTAL_WHOLE_POUNDS, typ = 'n')
-regions <- sort(unique(kmk_yr_region$REGION))
-for(i in 1:5){
-  with(subset(kmk_yr_region, REGION==regions[i]),
-       lines(LAND_YEAR, TOTAL_WHOLE_POUNDS, col = i, typ = 'o', lwd = 2))
-}
-legend('topleft', regions, col = 1:5, lty = 1, lwd = 2)
 
