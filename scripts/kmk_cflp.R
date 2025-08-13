@@ -42,9 +42,9 @@ cflp <- subset(cflp, LAND_YEAR<2024 & LAND_YEAR>1999 & CATCH_TYPE == 'CATCH') |>
 gc()
 
 ### pull out handlines only
-table(cflp$GEAR)
-# gear_keep <- c('H', 'E', 'TR')
-gear_keep <- c('TR')
+# table(cflp$GEAR)
+gear_keep <- c('H', 'E', 'TR')
+# gear_keep <- c('TR')
 cflp_hl <- subset(cflp , is.element(cflp$GEAR, gear_keep)) |>
   subset(FLAG_MULTIGEAR==0 & FLAG_MULTIAREA==0)
 # saveRDS(cflp_hl, 'cflp_gulfsa_temp.rds')
@@ -1144,5 +1144,29 @@ quantile(subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO', select = 'cp
          na.rm = T, seq(0,1,.01))
 
 
+
+
+#### trip level kmk proportion ####---------------------------------------------
+
+### next: characterize what is a vessel catching kmk, what else are they catching, gear, length of trip
+
+tot_land <- aggregate(tot_kg ~ LAND_YEAR + LAND_MONTH +
+                        REGION + ST_ABRV + AREA_FISHED +
+                        VESSEL_ID, #+ SCHEDULE_NUMBER,
+                      data = cflp_hl_1,
+                      sum, na.rm = T)
+
+tot_kmk_land <- aggregate(tot_kg ~ LAND_YEAR + LAND_MONTH +
+                        REGION + ST_ABRV + AREA_FISHED +
+                        VESSEL_ID, #+ SCHEDULE_NUMBER,
+                      data = subset(cflp_hl_1, 
+                                    COMMON_NAME=='MACKERELS, KING AND CERO'),
+                      sum, na.rm = T)
+names(tot_kmk_land)[length(names(tot_kmk_land))] <- 'tot_kmk_kg'
+tot_landm <- merge(tot_land, tot_kmk_land)
+tot_landm$kmk_pro <- tot_landm$tot_kmk_kg / tot_landm$tot_kg
+hist(tot_landm$kmk_pro)
+boxplot(kmk_pro ~ LAND_MONTH, data = tot_landm)
+boxplot(kmk_pro ~ REGION + LAND_YEAR, data = tot_landm, col = c('gray','purple'))
 
 
