@@ -84,6 +84,7 @@ dat_38$date2 <- convert_excel_dates(dat_38$Date)
 dat_38$month_num <- match(dat_38$Month,month.abb)
 dat_38$State <- toupper(dat_38$State)
 dat_38$Sex <- toupper(dat_38$Sex)
+names(dat_38)[grep('source',names(dat_38))][2] <- 'source_2'
 
 names(dat_38) <- str_replace_all(names(dat_38), ' #|#', '')
 names(dat_38) <- str_replace_all(names(dat_38), ' ', '_')
@@ -225,6 +226,52 @@ with(subset(agg_All, sex =='M' & stock_id_2 == 'ATLANTIC'),
 ### end sample sizes
 
 
+### weighted mean
+### the weighted mean will weight based on sample sizes per age class
+#sedar38
+sd_38 <- subset(dat3, stock_id_2 != "Winter Mixing" &
+                  year != 2013 &
+                  stock_id_2 != "Unknown")
+#sedar38U
+sd_38u <- subset(dat2, STOCK_ID != "MIXING")
+
+
+
+?mapply
+
+sd_38_wtm <- sd_38 |> group_by(year, stock_id_2 ,sex, final_age) |>
+  summarise(mean = mean(fl_mm), n = n()) |>
+  group_by(year, stock_id_2, sex) |>
+  summarise(w.mean = weighted.mean(mean, n))
+
+sd_38u_wtm <- sd_38u |> group_by(CATCH_YEAR, STOCK_ID, MACRO_SEX, CALENDAR_AGE) |> 
+  summarise(mean = mean(OBSERVED_FL_MM), n = n()) |>
+  group_by(CATCH_YEAR, STOCK_ID, MACRO_SEX) |>
+  summarise(w.mean = weighted.mean(mean, n))
+
+names(sd_38u_wtm) <- names(sd_38_wtm)
+sd_38_wtm$stock_id_2 <- toupper(sd_38_wtm$stock_id_2)
+sd_38u_wtm$stock_id_2 <- sapply(sd_38u_wtm$stock_id_2, switch,
+                             'GULF OF MEXICO' = 'GULF', 'SOUTH ATLANTIC' = 'ATLANTIC', 'MIXING' = 'MIXING',
+                             USE.NAMES = F)
+
+all_wtm <- rbind(sd_38_wtm, sd_38u_wtm)
+
+plot(all_wtm$year, all_wtm$w.mean, typ = 'n')
+with(subset(all_wtm, stock_id_2 == 'GULF' & sex == 'F'),
+     points(year, w.mean, typ = 'l', lwd = 2, col = 1))
+with(subset(all_wtm, stock_id_2 == 'GULF' & sex == 'M'),
+     points(year, w.mean, typ = 'l', lwd = 2, col = 1, lty = 2))
+with(subset(all_wtm, stock_id_2 == 'ATLANTIC' & sex == 'F'),
+     points(year, w.mean, typ = 'l', lwd = 2, col = 2))
+with(subset(all_wtm, stock_id_2 == 'ATLANTIC' & sex == 'M'),
+     points(year, w.mean, typ = 'l', lwd = 2, col = 2, lty = 2))
+
+
+### end weighted mean
+
+
+
 
 laa_38 <- aggregate(fl_mm ~ year + final_age + sex + stock_id_2,
                      data = sd_38, median, na.rm = T)
@@ -307,23 +354,46 @@ grid()
 ages_yr <- table(dat3$final_age, dat3$year)
 med_age <- aggregate(final_age ~ year, data = dat3, median, na.rm = T)
 
-image(1986:2013,2:8,t(ages_yr), asp = 1)
-lines(med_age)
-
 gulf_ages_yr <- with(subset(dat3, stock_id_2 == 'Gulf' & final_age>1),
      table(final_age, year))
 gulf_med_age <- with(subset(dat3, stock_id_2 == 'Gulf' & final_age>1),
                      aggregate(final_age ~ year, FUN = median, na.rm = T))
-
-image(1986:2013,2:8,t(gulf_ages_yr), asp = 1)
-lines(gulf_med_age)
 
 atl_ages_yr <- with(subset(dat3, stock_id_2 == 'Atlantic' & final_age>1),
      table(final_age, year))
 atl_med_age <- with(subset(dat3, stock_id_2 == 'Atlantic' & final_age>1),
                      aggregate(final_age ~ year, FUN = median, na.rm = T))
 
-image(1986:2013,2:8,t(atl_ages_yr), asp = 1)
-lines(atl_med_age)
+par(mfcol = c(3,2))
+# par(mfrow=c(3,1))
+image(1986:2013,2:8,t(ages_yr), asp = 1,
+      xlab = 'year', ylab = 'age')
+lines(med_age)
+mtext('Overall')
 
+image(1986:2013,2:8,t(gulf_ages_yr), asp = 1,
+      xlab = 'year', ylab = 'age')
+lines(gulf_med_age)
+mtext('Gulf')
+
+image(1986:2013,2:8,t(atl_ages_yr), asp = 1,
+      xlab = 'year', ylab = 'age')
+lines(atl_med_age)
+mtext('So Atl')
+
+
+
+yr_yday <- table(dat3$year, month(dat3$date2))
+gulf_yr_yday <- with(subset(dat3, stock_id_2 == 'Gulf' & final_age>1),
+                     table(year, month(date2)))
+atl_yr_yday <- with(subset(dat3, stock_id_2 == 'Atlantic' & final_age>1),
+                     table(year, month(date2)))
+
+# par(mfrow = c(3,1))
+image(1986:2013,1:12,(yr_yday), asp = 1,
+      xlab = 'year', ylab = 'month')
+image(1986:2013,1:12,(gulf_yr_yday), asp = 1,
+      xlab = 'year', ylab = 'month')
+image(1986:2013,1:12,(atl_yr_yday), asp = 1,
+      xlab = 'year', ylab = 'month')
 
