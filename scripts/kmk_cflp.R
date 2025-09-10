@@ -224,11 +224,9 @@ cflp_hl_1 <- cflp_hl_0
 # cflp_hl_2 <- cflp_hl[is.element(cflp_hl$VESSEL_ID, kmk_ves2), ]
 ### end
 
-
-
-#### cpue per region overtime ####----------------------------------------------
+### load data
 cflp_hl_1 <- readRDS('cflp_hl_1.rds')
-# image(2000:2023, 1:12, 
+# image(2000:2023, 1:12,
 #       table(cflp_hl_1$LAND_YEAR, cflp_hl_1$LAND_MONTH))
 # with(subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO'),
 #      image(2000:2023, 1:12, table(LAND_YEAR, LAND_MONTH)))
@@ -236,7 +234,11 @@ cflp_hl_1 <- readRDS('cflp_hl_1.rds')
 #      image(2000:2023, 1:12, table(LAND_YEAR, LAND_MONTH)))
 # with(subset(cflp_hl_1, REGION=='SATL' & COMMON_NAME=='MACKERELS, KING AND CERO'),
 #      image(2000:2023, 1:12, table(LAND_YEAR, LAND_MONTH)))
+### end
 
+
+
+#### cpue per region overtime ####----------------------------------------------
 cpue_yr_reg <- aggregate(cpue ~ LAND_YEAR + REGION + COMMON_NAME,
                          data = cflp_hl_1,
                          mean, na.rm = T)
@@ -264,6 +266,78 @@ abline(lm(cpue ~ LAND_YEAR,
           data = subset(cpue_yr_reg, REGION=='SATL' &
                           COMMON_NAME=='MACKERELS, KING AND CERO')), col = 2, lwd = 2)
 ### end
+
+
+
+#### landings per region overtime ####----------------------------------------------
+landings_yr_reg <- aggregate(tot_kg ~ LAND_YEAR + REGION + COMMON_NAME,
+                         data = cflp_hl_1,
+                         sum, na.rm = T)
+gc()
+
+with(subset(landings_yr_reg, COMMON_NAME=='MACKERELS, KING AND CERO'),
+     plot(LAND_YEAR, tot_kg, typ = 'n', xlab = 'year', ylab = 'Landings (kg)'))
+with(subset(landings_yr_reg, REGION=='GOM' & COMMON_NAME=='MACKERELS, KING AND CERO'),
+     points(LAND_YEAR, tot_kg, typ = 'o', pch = 16))
+with(subset(landings_yr_reg, REGION=='SATL' & COMMON_NAME=='MACKERELS, KING AND CERO'),
+     points(LAND_YEAR, tot_kg, typ = 'o', col = 2, pch = 16))
+abline(h = with(subset(landings_yr_reg, REGION=='GOM' & COMMON_NAME=='MACKERELS, KING AND CERO'),
+                mean(tot_kg)),
+       lty = 2)
+abline(h = with(subset(landings_yr_reg, REGION=='SATL' & COMMON_NAME=='MACKERELS, KING AND CERO'),
+                mean(tot_kg)),
+       col = 2, lty = 2)
+# abline(v = 2013, col = 4, lty = 2)
+grid()
+legend('topleft', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
+abline(lm(tot_kg ~ LAND_YEAR, 
+          data = subset(landings_yr_reg, REGION=='GOM' &
+                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 1, lwd = 2)
+abline(lm(tot_kg ~ LAND_YEAR, 
+          data = subset(landings_yr_reg, REGION=='SATL' &
+                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 2, lwd = 2)
+### end
+
+
+
+### landings per state over time
+landings_yr_st <- aggregate(tot_kg ~ LAND_YEAR + ST_ABRV + REGION + COMMON_NAME,
+                        data = cflp_hl_1,
+                        sum, na.rm = T)
+gc()
+
+#GOM
+gulf <- c('AL', 'FL', 'LA', 'MS', 'TX')
+with(subset(landings_yr_st, is.element(ST_ABRV, gulf) & 
+              REGION=='GOM' &
+              COMMON_NAME=='MACKERELS, KING AND CERO'),
+     plot(LAND_YEAR, tot_kg, typ = 'n', xlab = 'year', ylab = 'Landings (kg)'))
+for(i in 1:length(gulf)){
+  with(subset(landings_yr_st, ST_ABRV==gulf[i] & 
+                REGION=='GOM' &
+                COMMON_NAME=='MACKERELS, KING AND CERO'),
+       points(LAND_YEAR, tot_kg, typ = 'o', col = i, pch = 16, lwd = 2))
+}
+grid()
+legend('topleft',gulf, lty=1, col=1:length(gulf),bty = 'n', pch = 16, lwd = 2)
+
+#SATL
+satl <- c('FL', 'GA', 'NC', 'SC') #'NJ', 'NY', 'VA')
+with(subset(landings_yr_st, is.element(ST_ABRV, satl) & 
+              REGION=='SATL' &
+              COMMON_NAME=='MACKERELS, KING AND CERO'),
+     plot(LAND_YEAR, tot_kg, typ = 'n', xlab = 'year', ylab = 'Landings (kg)'))
+for(i in 1:length(satl)){
+  with(subset(landings_yr_st, ST_ABRV==satl[i] & 
+                REGION=='SATL' &
+                COMMON_NAME=='MACKERELS, KING AND CERO'),
+       points(LAND_YEAR, tot_kg, typ = 'o', col = i, pch = 16, lwd = 2))
+}
+grid()
+legend('topleft',satl, lty=1, col=1:length(satl),bty = 'n', pch = 16, lwd = 2)
+### end
+
+
 
 
 ### CPUE per state over time
@@ -538,7 +612,43 @@ abline(lm(SCHEDULE_NUMBER ~ LAND_YEAR,
 abline(lm(SCHEDULE_NUMBER ~ LAND_YEAR, 
           data = subset(trps_yr, REGION=='SATL' &
                           COMMON_NAME=='MACKERELS, KING AND CERO')), col = 2)
+### end
 
+
+
+#### hovmoller plots month x year proportion of total catch per month per year ####----------------------------------
+
+# aggregrate by state, month, year
+
+yr_mth <- expand.grid(LAND_MONTH = 1:12, LAND_YEAR = 2000:2023)
+
+cpue_hov1 <- subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO') |>
+  aggregate(cpue ~ LAND_YEAR + LAND_MONTH + ST_ABRV + REGION,
+            mean, na.rm = T)
+
+gulf_fl_cpue <- subset(cpue_hov1, ST_ABRV=='FL' & REGION=='GOM') |>
+  merge(yr_mth, by = c('LAND_YEAR', 'LAND_MONTH'), all = T) |>
+  arrange(LAND_YEAR, LAND_MONTH)
+
+image(matrix(gulf_fl_cpue$cpue, 24, 12, byrow = T))
+
+
+landings_hov1 <- subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO') |>
+  aggregate(tot_kg ~ LAND_YEAR + LAND_MONTH + ST_ABRV + REGION,
+            sum, na.rm = T)
+
+gulf_fl_landings <- subset(landings_hov1, ST_ABRV=='FL' & REGION=='GOM') |>
+  merge(yr_mth, by = c('LAND_YEAR', 'LAND_MONTH'), all = T) |>
+  arrange(LAND_YEAR, LAND_MONTH)
+gfl_hov_landings <- matrix(gulf_fl_landings$tot_kg, 24, 12, byrow = T)
+gfl_hov_plandings <- t(t(gfl_hov_landings) / apply(gfl_hov_landings, 1, sum))
+
+image(2000:2023, 1:12,
+      gfl_hov_plandings,
+      las = 1, xlab = 'year', ylab = 'month',
+      breaks = seq(0,.8,.05), col = cmocean('dense')(8))
+
+### end
 
 
 
@@ -553,19 +663,20 @@ boxplot(cpue ~ REGION, data = subset(cflp_hl_1,
                                           COMMON_NAME=='MACKERELS, KING AND CERO'),
         pch = 16, lty = 1, varwidth = T, staplewex = 0, lwd = 2, outline = F)
 
-boxplot(cpue ~ LAND_YEAR, data = subset(cflp_hl_1, REGION=='GOM' &
-                                          COMMON_NAME=='MACKERELS, KING AND CERO'),
-        pch = 16, lty = 1, varwidth = T, staplewex = 0, lwd = 2, outline = F)
-
-boxplot(cpue ~ LAND_YEAR, data = subset(cflp_hl_1, REGION=='SATL' &
-                                          COMMON_NAME=='MACKERELS, KING AND CERO'),
-        pch = 16, lty = 1, varwidth = T, staplewex = 0, lwd = 2, outline = F)
+# boxplot(cpue ~ LAND_YEAR, data = subset(cflp_hl_1, REGION=='GOM' &
+#                                           COMMON_NAME=='MACKERELS, KING AND CERO'),
+#         pch = 16, lty = 1, varwidth = T, staplewex = 0, lwd = 2, outline = F)
+# 
+# boxplot(cpue ~ LAND_YEAR, data = subset(cflp_hl_1, REGION=='SATL' &
+#                                           COMMON_NAME=='MACKERELS, KING AND CERO'),
+#         pch = 16, lty = 1, varwidth = T, staplewex = 0, lwd = 2, outline = F)
 
 b <- boxplot(cpue ~ REGION + LAND_YEAR, data = subset(cflp_hl_1,
                                                  COMMON_NAME=='MACKERELS, KING AND CERO'),
         pch = 16, lty = 1, varwidth = F, staplewex = 0, lwd = 2, outline = F,
         col = c('gray', 'purple'), xaxt = 'n')
 axis(1, seq(1.5, 48.5, 2), 2000:2023, las = 2)
+legend('topleft',c('Gulf', 'SAtl'), fill = c('gray', 'purple'))
 
 
 setwd("~/R_projects/misc-noaa-scripts/figs")
