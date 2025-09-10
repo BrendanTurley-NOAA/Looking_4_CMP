@@ -641,12 +641,67 @@ gulf_fl_landings <- subset(landings_hov1, ST_ABRV=='FL' & REGION=='GOM') |>
   merge(yr_mth, by = c('LAND_YEAR', 'LAND_MONTH'), all = T) |>
   arrange(LAND_YEAR, LAND_MONTH)
 gfl_hov_landings <- matrix(gulf_fl_landings$tot_kg, 24, 12, byrow = T)
-gfl_hov_plandings <- t(t(gfl_hov_landings) / apply(gfl_hov_landings, 1, sum))
+gfl_hov_plandings <- t(t(gfl_hov_landings) / apply(gfl_hov_landings, 1, sum, na.rm = T))
+
+gulf_la_landings <- subset(landings_hov1, ST_ABRV=='LA' & REGION=='GOM') |>
+  merge(yr_mth, by = c('LAND_YEAR', 'LAND_MONTH'), all = T) |>
+  arrange(LAND_YEAR, LAND_MONTH)
+gla_hov_landings <- matrix(gulf_la_landings$tot_kg, 24, 12, byrow = T)
+gla_hov_plandings <- t(t(gla_hov_landings) / apply(gla_hov_landings, 1, sum, na.rm = T))
 
 image(2000:2023, 1:12,
       gfl_hov_plandings,
       las = 1, xlab = 'year', ylab = 'month',
-      breaks = seq(0,.8,.05), col = cmocean('dense')(8))
+      breaks = seq(0,.8,.05), col = cmocean('dense')(16))
+
+image(2000:2023, 1:12,
+      gla_hov_plandings,
+      las = 1, xlab = 'year', ylab = 'month',
+      breaks = seq(0,.8,.05), col = cmocean('dense')(16))
+
+image(2000:2023, 1:12,
+      gla_hov_landings,
+      las = 1, xlab = 'year', ylab = 'month')
+      
+### test for weeks
+yr_week <- expand.grid(week = 1:53, LAND_YEAR = 2000:2023)
+
+landings_hov1 <- subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO') |>
+  aggregate(tot_kg ~ LAND_YEAR + week(LAND_DATE) + ST_ABRV + REGION,
+            sum, na.rm = T)
+names(landings_hov1)[2] <- 'week'
+
+gulf_fl_landings <- subset(landings_hov1, ST_ABRV=='FL' & REGION=='GOM') |>
+  merge(yr_week, by = c('LAND_YEAR', 'week'), all = T) |>
+  arrange(LAND_YEAR, week)
+gfl_hov_landings <- matrix(gulf_fl_landings$tot_kg, 24, 53, byrow = T)
+gfl_hov_plandings <- t(t(gfl_hov_landings) / apply(gfl_hov_landings, 1, sum,na.rm = T))
+
+gulf_la_landings <- subset(landings_hov1, ST_ABRV=='LA' & REGION=='GOM') |>
+  merge(yr_week, by = c('LAND_YEAR', 'week'), all = T) |>
+  arrange(LAND_YEAR, week)
+gla_hov_landings <- matrix(gulf_la_landings$tot_kg, 24, 53, byrow = T)
+gla_hov_plandings <- t(t(gla_hov_landings) / apply(gla_hov_landings, 1, sum,na.rm = T))
+
+image(2000:2023, 1:53,
+      gfl_hov_plandings,
+      las = 1, xlab = 'year', ylab = 'month', asp = 1/3,
+      breaks = seq(0,.4,.02), col = cmocean('dense')(20))
+
+plot(2000:2023, apply(gfl_hov_plandings,1,max,na.rm=T), typ ='o')
+plot(2000:2023, apply(gfl_hov_plandings,1,which.max), typ ='o')
+plot(2000:2023, apply(gfl_hov_plandings,1,mean,na.rm=T), typ ='o')
+
+image(2000:2023, 1:53,
+      gla_hov_plandings,
+      las = 1, xlab = 'year', ylab = 'month', asp = 1/3,
+      breaks = seq(0,.7,.02), col = cmocean('dense')(35))
+
+plot(2000:2023, apply(gla_hov_plandings,1,max,na.rm=T), typ ='o')
+plot(2000:2023, apply(gla_hov_plandings,1,which.max), typ ='o')
+plot(2000:2023, apply(gla_hov_plandings,1,mean,na.rm=T), typ ='o')
+
+
 
 ### end
 
