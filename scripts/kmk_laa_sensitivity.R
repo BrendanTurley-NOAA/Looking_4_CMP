@@ -38,7 +38,7 @@ dat3 <- subset(dat_38, sex == 'M' | sex == 'F') |>
 
 ### SEDAR38U data: 2013-2017
 setwd("C:/Users/brendan.turley/Documents/CMP/data/kmk_lengths")
-dat_38u <- read_xlsx('2019SEDAR38UAge_Data (1).xlsx', sheet = 2)
+dat_38u <- read_xlsx('2019SEDAR38UAge_Data.xlsx', sheet = 2)
 
 dat2 <- subset(dat_38u, MACRO_SEX == 'M' | MACRO_SEX == 'F') |>
   subset(GEAR_GROUP_CODE == 'HL') |>

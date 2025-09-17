@@ -1,3 +1,4 @@
+
 source('C:/Users/brendan.turley/Documents/R_projects/Looking_4_CMP/scripts/kmk_convert_2fl.R')
 
 library(dplyr)
@@ -29,7 +30,7 @@ se <-
 
 
 setwd("C:/Users/brendan.turley/Documents/CMP/data/kmk_lengths")
-dat_38u <- read_xlsx('2019SEDAR38UAge_Data (1).xlsx', sheet = 2)
+dat_38u <- read_xlsx('2019SEDAR38UAge_Data.xlsx', sheet = 2)
 
 dat2 <- subset(dat_38u, MACRO_SEX == 'M' | MACRO_SEX == 'F') |>
   subset(GEAR_GROUP_CODE == 'HL') |>
@@ -208,22 +209,27 @@ agg_38u$stock_id_2 <- sapply(agg_38u$stock_id_2, switch,
                              'GULF OF MEXICO' = 'GULF', 'SOUTH ATLANTIC' = 'ATLANTIC', 'MIXING' = 'MIXING',
                              USE.NAMES = F)
 
-agg_All <- rbind(agg_38, agg_38u)
+agg_All_n <- rbind(agg_38, agg_38u)
 
-plot(agg_All$year, agg_All$fl_mm,
+plot(agg_All_n$year, agg_All_n$fl_mm,
      type = 'n', xlab = 'year', ylab = 'sample size')
 
-with(subset(agg_All, sex =='F' & stock_id_2 == 'GULF'),
+with(subset(agg_All_n, sex =='F' & stock_id_2 == 'GULF'),
      lines(year, fl_mm, col = 1, lwd = 2))
-with(subset(agg_All, sex =='M' & stock_id_2 == 'GULF'),
+with(subset(agg_All_n, sex =='M' & stock_id_2 == 'GULF'),
      lines(year, fl_mm, col = 1, lwd = 2, lty = 3))
 
-with(subset(agg_All, sex =='F' & stock_id_2 == 'ATLANTIC'),
+with(subset(agg_All_n, sex =='F' & stock_id_2 == 'ATLANTIC'),
      lines(year, fl_mm, col = 2, lwd = 2))
-with(subset(agg_All, sex =='M' & stock_id_2 == 'ATLANTIC'),
+with(subset(agg_All_n, sex =='M' & stock_id_2 == 'ATLANTIC'),
      lines(year, fl_mm, col = 2, lwd = 2, lty = 3))
 
 ### end sample sizes
+agg_All_com <- merge(agg_All, agg_All_n, by = c('year','sex','stock_id_2'))
+
+plot(agg_All_com$fl_mm.x, agg_All_com$fl_mm.y, 
+     col = as.factor(agg_All_com$stock_id_2))
+
 
 
 ### weighted mean
@@ -252,7 +258,9 @@ sd_38u_wtm <- sd_38u |> group_by(CATCH_YEAR, STOCK_ID, MACRO_SEX, CALENDAR_AGE) 
 names(sd_38u_wtm) <- names(sd_38_wtm)
 sd_38_wtm$stock_id_2 <- toupper(sd_38_wtm$stock_id_2)
 sd_38u_wtm$stock_id_2 <- sapply(sd_38u_wtm$stock_id_2, switch,
-                             'GULF OF MEXICO' = 'GULF', 'SOUTH ATLANTIC' = 'ATLANTIC', 'MIXING' = 'MIXING',
+                             'GULF OF MEXICO' = 'GULF',
+                             'SOUTH ATLANTIC' = 'ATLANTIC',
+                             'MIXING' = 'MIXING',
                              USE.NAMES = F)
 
 all_wtm <- rbind(sd_38_wtm, sd_38u_wtm)
@@ -266,7 +274,8 @@ with(subset(all_wtm, stock_id_2 == 'ATLANTIC' & sex == 'F'),
      points(year, w.mean, typ = 'l', lwd = 2, col = 2))
 with(subset(all_wtm, stock_id_2 == 'ATLANTIC' & sex == 'M'),
      points(year, w.mean, typ = 'l', lwd = 2, col = 2, lty = 2))
-
+# legend('topleft',c(unique(agg_All_com$stock_id_2),unique(agg_All_com$sex)),
+       # col = c(1,2,'gray40','gray40'), lty = c(1,1,2,2), lwd = 2)
 
 ### end weighted mean
 
