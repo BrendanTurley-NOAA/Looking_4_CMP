@@ -33,7 +33,7 @@ setwd("C:/Users/brendan.turley/Documents/data/bathy")
 bathy <- rast('etopo1.nc')
 
 ### isolate shelf
-bathy[values(bathy$Band1) > (-3.5)] <- NA
+bathy[values(bathy$Band1) > (-10)] <- NA
 bathy[values(bathy$Band1) < (-120)] <- NA
 
 plot(bathy,
