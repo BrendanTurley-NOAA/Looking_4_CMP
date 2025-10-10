@@ -1,4 +1,5 @@
 ### find occurrances in obis and gbif
+## also https://github.com/ropensci/spocc
 
 library(usethis)
 # usethis::edit_r_environ()
