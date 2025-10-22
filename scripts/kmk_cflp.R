@@ -241,7 +241,7 @@ cflp_hl_1 <- readRDS('cflp_hl_1.rds')
 #### cpue per region overtime ####----------------------------------------------
 cpue_yr_reg <- aggregate(cpue ~ LAND_YEAR + REGION + COMMON_NAME,
                          data = cflp_hl_1,
-                         mean, na.rm = T)
+                         median, na.rm = T)
 gc()
 
 with(subset(cpue_yr_reg, COMMON_NAME=='MACKERELS, KING AND CERO'),
@@ -251,10 +251,10 @@ with(subset(cpue_yr_reg, REGION=='GOM' & COMMON_NAME=='MACKERELS, KING AND CERO'
 with(subset(cpue_yr_reg, REGION=='SATL' & COMMON_NAME=='MACKERELS, KING AND CERO'),
      points(LAND_YEAR, cpue, typ = 'o', col = 2, pch = 16))
 abline(h = with(subset(cpue_yr_reg, REGION=='GOM' & COMMON_NAME=='MACKERELS, KING AND CERO'),
-                mean(cpue)),
+                median(cpue)),
        lty = 2)
 abline(h = with(subset(cpue_yr_reg, REGION=='SATL' & COMMON_NAME=='MACKERELS, KING AND CERO'),
-                mean(cpue)),
+                median(cpue)),
        col = 2, lty = 2)
 # abline(v = 2013, col = 4, lty = 2)
 grid()
@@ -343,7 +343,7 @@ legend('topleft',satl, lty=1, col=1:length(satl),bty = 'n', pch = 16, lwd = 2)
 ### CPUE per state over time
 cpue_yr_st <- aggregate(cpue ~ LAND_YEAR + ST_ABRV + REGION + COMMON_NAME,
                         data = cflp_hl_1,
-                        mean, na.rm = T)
+                        median, na.rm = T)
 gc()
 
 #GOM
@@ -660,6 +660,10 @@ image(2000:2023, 1:12,
       breaks = seq(0,.8,.05), col = cmocean('dense')(16))
 
 image(2000:2023, 1:12,
+      gfl_hov_landings,
+      las = 1, xlab = 'year', ylab = 'month')
+
+image(2000:2023, 1:12,
       gla_hov_landings,
       las = 1, xlab = 'year', ylab = 'month')
       
@@ -746,6 +750,15 @@ plot(aggregate(AREA_FISHED ~ LAND_YEAR,
      typ = 'o',ylab = 'Number of areas fished', pch = 16)
 grid()
 dev.off()
+
+
+plot(aggregate(AREA_FISHED ~ LAND_YEAR, 
+               data = subset(cpue_yr_area_region,
+                             REGION=='GOM' &
+                               COMMON_NAME=='MACKERELS, KING AND CERO'),
+               length),
+     typ = 'o',ylab = 'Number of areas fished', pch = 16)
+grid()
 
 par(mfrow = c(1,1), mar = c(4,4,1,1))
 plot(aggregate(AREA_FISHED ~ LAND_YEAR, 

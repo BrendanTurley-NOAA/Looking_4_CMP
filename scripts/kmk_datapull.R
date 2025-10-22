@@ -33,3 +33,9 @@ d <- occ_download_get('0006217-251009101135966') %>%
 unzip('0006217-251009101135966.zip')
 test <- readLines('occurrence.txt')
 test <- read.delim('occurrence.txt')
+
+
+
+plot(kmk_obis$decimalLongitude, kmk_obis$decimalLatitude, asp = 1)
+plot(kmk_gbif$data$decimalLongitude, kmk_gbif$data$decimalLatitude, asp = 1)
+plot(test$decimalLongitude, test$decimalLatitude, asp = 1)
