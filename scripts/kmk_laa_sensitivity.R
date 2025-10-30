@@ -12,6 +12,7 @@ library(here)
 library(lubridate)
 library(readxl)
 library(stringr)
+library(viridis)
 
 
 setwd(paste0(here()))
@@ -104,8 +105,8 @@ dat_all <- rbind(dat_38rr, dat_38urr)
 dat_all$stock_id_2[grep('atlantic',dat_all$stock_id_2,ignore.case = T)] <- 'SATL'
 dat_all$stock_id_2[grep('gulf',dat_all$stock_id_2,ignore.case = T)] <- 'GULF'
 dat_all$stock_id_2[grep('mix',dat_all$stock_id_2,ignore.case = T)] <- 'MIXING'
-
 dat_all$sex[grep('[dinu]',dat_all$sex,ignore.case = T)] <- 'U'
+dat_all$mode_2[which(dat_all$mode_2=='CM')] <- 'COM'
 
 
 
@@ -127,7 +128,6 @@ vsv2 <- findGrowthStarts(fl_mm ~ final_age, data = gulf_dat,
                          fixed = c(t0 = -1))
 
 resv1 <- nls(fl_mm ~ vb1(final_age, Linf, K, t0), data=gulf_dat, start=vsv1)
-
 cbind(Est=coef(resv1),confint(resv1))
 
 plot(fl_mm ~ final_age, data = gulf_dat)
@@ -222,7 +222,7 @@ library(minpack.lm)
 
 ### gear, mode, sex, state, age
 
-gulf_dat_age <- subset(gulf_dat, final_age > 0 & final_age < 16)
+gulf_dat_age <- subset(gulf_dat, final_age > 1 & final_age < 9)
 satl_dat <- subset(dat_all, stock_id_2 == 'SATL')
 
 yrs <- sort(unique(gulf_dat_age$year))
@@ -274,9 +274,102 @@ ks <- data.frame(year = yrs,
 plot(ks$year, ks$k_ts, typ = 'o')
 polygon(c(ks$year,rev(ks$year)), c(ks$lcl,rev(ks$ucl)))
 
-# plot(yrs, r, typ = 'o')
+### end
 
-dat_laa <- subset(gulf_dat, final_age > 1 & final_age < 9)
+
+### gear, mode, sex, state, age
+
+
+par(mfrow=c(3,3))
+
+gulf_all <- findGrowthStarts(fl_mm ~ final_age, data = gulf_dat,
+                          type = "von Bertalanffy", pname = "Typical", plot = T)
+
+table(gulf_dat$gear_common)
+gulf_gear <- subset(gulf_dat, gear_common=="HL" | gear_common=='GN')
+table(gulf_gear$gear_common)
+gg_vb <- findGrowthStarts(fl_mm ~ final_age, data = gulf_gear,
+                         type = "von Bertalanffy", pname = "Typical", plot = T)
+
+table(gulf_dat$mode_2)
+gulf_mode <- subset(gulf_dat, mode_2=="COM" | mode_2=='REC')
+table(gulf_mode$mode_2)
+gm_vb <- findGrowthStarts(fl_mm ~ final_age, data = gulf_mode,
+                          type = "von Bertalanffy", pname = "Typical", plot = T)
+
+table(gulf_dat$state)
+gulf_state <- subset(gulf_dat, state!="MEX" & state!='MS' & state!='AL')
+table(gulf_state$state)
+gs_vb <- findGrowthStarts(fl_mm ~ final_age, data = gulf_state,
+                          type = "von Bertalanffy", pname = "Typical", plot = T)
+
+table(gulf_dat$final_age)
+gulf_age <- subset(gulf_dat, final_age<10 & final_age>0)
+table(gulf_age$final_age)
+ga_vb <- findGrowthStarts(fl_mm ~ final_age, data = gulf_age,
+                          type = "von Bertalanffy", pname = "Typical", plot = T)
+
+table(gulf_dat$sex)
+gulf_sex <- subset(gulf_dat, sex=='F')
+table(gulf_sex$sex)
+gxf_vb <- findGrowthStarts(fl_mm ~ final_age, data = gulf_sex,
+                          type = "von Bertalanffy", pname = "Typical", plot = T)
+gulf_sexm <- subset(gulf_dat, sex=='M')
+table(gulf_sexm$sex)
+gxm_vb <- findGrowthStarts(fl_mm ~ final_age, data = gulf_sexm,
+                          type = "von Bertalanffy", pname = "Typical", plot = T)
+
+
+rbind(gulf_all,
+      gg_vb,
+      gm_vb,
+      gs_vb,
+      ga_vb,
+      gxf_vb,
+      gxm_vb)
+
+
+
+
+dat_laa <- subset(gulf_dat, final_age > 1 & final_age < 9) |>
+  subset(state!="MEX" & state!='MS' & state!='AL') |>
+  subset(gear_common=="HL" | gear_common=='GN') |>
+  subset(mode_2=="COM" | mode_2=='REC')
+
+dat_laa <- subset(gulf_dat, state=='NWF' | state=='LA') |>
+  subset(final_age > 1 & final_age < 9) |>
+  subset(gear_common=="HL" | gear_common=='GN') |>
+  subset(mode_2=="COM" | mode_2=='REC')
+
+dat_laa <- subset(gulf_dat, final_age > 1 & final_age < 9) |>
+  subset(state!="MEX" & state!='MS' & state!='AL') |>
+  subset(gear_common=='GN') |>
+  subset(mode_2=="COM" | mode_2=='REC')
+
+dat_laa <- subset(gulf_dat, final_age > 1 & final_age < 9) |>
+  subset(state!="MEX" & state!='MS' & state!='AL') |>
+  subset(gear_common=='HL') |>
+  subset(mode_2=="COM" | mode_2=='REC')
+
+
+gulf_st_yr <- aggregate(fl_mm ~ year + state, data = dat_laa, length) |>
+  arrange(year, state) |>
+  reshape(idvar = 'state', timevar = 'year', direction = 'wide')
+gulf_st_yr1 <- t(data.matrix(gulf_st_yr[,-1]))
+gulf_st_yr1[which(is.na(gulf_st_yr1))] <- 0
+gulf_st_pro1 <- (gulf_st_yr1)/rowSums(gulf_st_yr1)
+colnames(gulf_st_pro1) <- gulf_st_yr$state
+cols <- rev(turbo(ncol(gulf_st_pro1)))
+
+par(mar=c(3,3,1,5))
+b1 <- barplot(t(gulf_st_pro1), names.arg = 1986:2017, las = 2, col = cols)
+legend(b1[length(b1)] + 1, 1, gulf_st_yr$state, fill = cols, xpd = T, bty = 'n', cex = .8)
+
+boxplot(fl_mm ~ gear_common, data = dat_laa, varwidth = T)
+boxplot(fl_mm ~ mode_2, data = dat_laa, varwidth = T)
+boxplot(fl_mm ~ state, data = dat_laa, varwidth = T)
+boxplot(final_age ~ state, data = dat_laa, varwidth = T)
+barplot(table(dat_laa$state))
 
 gulf_lth <- aggregate(fl_mm ~ year, data = dat_laa, mean)
 gulf_lth_st <- aggregate(fl_mm ~ year + state, data = dat_laa, mean)
@@ -294,8 +387,11 @@ for(i in ages){
   tmp2 <- subset(gulf_samp, final_age==i)
        points(tmp$year, tmp$fl_mm, typ = 'o', bg = i,
               cex = (tmp2$fl_mm)/mean((gulf_samp$fl_mm))*2, pch = 21)
+              # cex = sqrt(tmp2$fl_mm)/2, pch = 21)
 }
 points(gulf_lth$year, gulf_lth$fl_mm, lwd = 5, typ = 'l')
+
+pts <- rep(c(21,22,23,24,25),2)
 
 plot(fl_mm ~ year, data = gulf_lth_st, typ = 'n')
 grid()
@@ -303,21 +399,70 @@ for(i in states){
   tmp <- subset(gulf_lth_st, state==i)
   tmp2 <- subset(gulf_st_samp, state==i)
   points(tmp$year, tmp$fl_mm, typ = 'o', bg = which(i==states), col = which(i==states),
-         cex = (tmp2$fl_mm)/mean((gulf_st_samp$fl_mm)), pch = 21)
+         cex = (tmp2$fl_mm)/mean((gulf_st_samp$fl_mm))*2, pch = 21)
+         # cex = log(tmp2$fl_mm), pch = pts[which(i==states)])
 }
 points(gulf_lth$year, gulf_lth$fl_mm, lwd = 5, typ = 'l')
-legend('topright',states, pch = 21, pt.bg = 1:9)
+legend('topright',states, pch = pts[1:9], pt.bg = 1:9)
 
-gulf_st_yr <- aggregate(fl_mm ~ year + state, data = dat_laa, length) |>
-  arrange(year, state) |> 
-  reshape(idvar = 'state', timevar = 'year', direction = 'wide')
-gulf_st_yr1 <- t(data.matrix(gulf_st_yr[,-1]))
-gulf_st_yr1[which(is.na(gulf_st_yr1))] <- 0
 
-gulf_st_pro1 <- (gulf_st_yr1)/rowSums(gulf_st_yr1)
+ages <- sort(unique(gulf_lth_yr$final_age))
+years <- sort(unique(gulf_lth_yr$year))
 
-cols <- rev(turbo(ncol(gulf_st_pro1)))
 
-par(mar=c(3,3,1,5))
-b1 <- barplot(t(gulf_st_pro1), names.arg = 1986:2017, las = 2, col = cols)
-legend(b1[length(b1)] + 1, 1, gulf_st_yr$state, fill = cols, xpd = T, bty = 'n', cex = .8)
+### cohort plots
+### for each year, pull age 2, create a vector (year, length) for that class
+m <- 1
+n <- 0
+cohorts <- matrix(NA,7*length(years),4) |> as.data.frame() |>
+  setNames(c('year','final_age','fl_mm','cohort'))
+for(i in years){
+  out <- mapply(function(x,y) subset(gulf_lth_yr, year==x & final_age==y),
+                i:(i+6),2:8, SIMPLIFY = T) |> 
+    unlist()
+  out <- matrix(out, 3, length(out)/3) |> t() |> as.data.frame()
+  n <- n + nrow(out)
+  cohorts[m:n, ] <- cbind(out, i)
+  m <- n + 1
+}
+cohorts <- cohorts[which(!is.na(cohorts$year)), ]
+
+plot(fl_mm ~ year, data = gulf_lth_yr, typ = 'n')
+grid()
+for(i in ages){
+  tmp <- subset(gulf_lth_yr, final_age==i)
+  tmp2 <- subset(gulf_samp, final_age==i)
+  points(tmp$year, tmp$fl_mm, typ = 'o', bg = i,
+         cex = (tmp2$fl_mm)/mean((gulf_samp$fl_mm))*2, pch = 21)
+  # cex = sqrt(tmp2$fl_mm)/2, pch = 21)
+}
+points(gulf_lth$year, gulf_lth$fl_mm, lwd = 5, typ = 'l')
+
+colc <- colorRampPalette(c('gray','purple2'))(length(years))
+for(i in years){
+  tmp <- subset(cohorts, cohort==i)
+  points(tmp$year, tmp$fl_mm, typ='l', lwd = 3, col = colc[which(i==years)])
+}
+
+plot(fl_mm ~ final_age, data = gulf_lth_yr, typ = 'n')
+for(i in years){
+  tmp <- subset(cohorts, cohort==i)
+  points(tmp$final_age, tmp$fl_mm, typ='o', lwd = 3, col = colc[which(i==years)])
+  # abline(lm(log10(fl_mm) ~ log10(final_age),data=tmp), col = colc[which(i==years)])
+}
+
+
+
+# Growth: length versus weight --------------------------------------------
+# The length-weight relationship equation.
+# Equation: \(W=a*L^{b}\)\
+# (W\): Weight of the fish\
+# (L\): Length of the fish\
+# (a\): A constant, often near zero\
+# (b\): An exponent that shows how weight increases relative to length
+# If \(b=3\), it represents isometric growth, where the fish grows proportionally in length and weight.
+# If \(b<3\), it indicates negative allometric growth, meaning the fish becomes slimmer as it gets longer.
+# If \(b>3\), it indicates positive allometric growth, meaning the fish gains weight more quickly than its length.
+
+
+
