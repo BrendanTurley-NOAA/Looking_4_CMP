@@ -111,11 +111,36 @@ dat_all$mode_2[which(dat_all$mode_2=='CM')] <- 'COM'
 
 
 # Growth modeling ---------------------------------------------------------
+library(fishgrowth)
 library(FSA)
 library(nlstools)
 
 gulf_dat <- subset(dat_all, stock_id_2 == 'GULF')
 satl_dat <- subset(dat_all, stock_id_2 == 'SATL')
+
+plot(gulf_dat$final_age, gulf_dat$fl_mm, log = 'xy')
+summary(lm(log(fl_mm) ~ log(final_age), data = subset(gulf_dat, final_age>0)))
+
+init <- list(log_L1=log(700), log_L2=log(1000), log_k=log(0.2),
+             log_sigma_min=log(3), log_sigma_max=log(3))
+dat <- list(Aoto=gulf_dat$final_age, Loto=gulf_dat$fl_mm, t1=1, t2=10)
+# vonbert_objfun(init, dat)
+model <- vonbert(init, dat)
+fit <- nlminb(model$par, model$fn, model$gr,
+              control=list(eval.max=1e4, iter.max=1e4))
+report <- model$report()
+sdreport <- sdreport(model)
+
+
+init <- list(log_Linf=log(1200), log_k=log(0.1), t0=-1,
+             log_sigma_min=log(3), log_sigma_max=log(3))
+dat <- list(Aoto=gulf_dat$final_age, Loto=gulf_dat$fl_mm)
+# vonberto_objfun(init, dat)
+model <- vonberto(init, dat)
+fit <- nlminb(model$par, model$fn, model$gr,
+              control=list(eval.max=1e5, iter.max=1e5))
+report <- model$report()
+sdreport <- sdreport(model)
 
 
 vb1 <- makeGrowthFun(type="von Bertalanffy",pname="Typical")
@@ -222,7 +247,7 @@ library(minpack.lm)
 
 ### gear, mode, sex, state, age
 
-gulf_dat_age <- subset(gulf_dat, final_age > 1 & final_age < 9)
+gulf_dat_age <- subset(gulf_dat, final_age > 0 & final_age < 15)
 satl_dat <- subset(dat_all, stock_id_2 == 'SATL')
 
 yrs <- sort(unique(gulf_dat_age$year))
@@ -268,12 +293,17 @@ for(i in yrs){
 ks <- data.frame(year = yrs,
                  k_ts = unlist(output)[seq(2,9*32,9)],
                  lcl = unlist(output)[seq(5,9*32,9)],
-                 ucl = unlist(output)[seq(8,9*32,9)]) |>
-  na.omit()
+                 ucl = unlist(output)[seq(8,9*32,9)]) #|>
+  # na.omit()
 
-plot(ks$year, ks$k_ts, typ = 'o')
-polygon(c(ks$year,rev(ks$year)), c(ks$lcl,rev(ks$ucl)))
+plot(ks$year, log(ks$k_ts), typ = 'o', pch = 16)
 
+plot(ks$year, ks$k_ts, typ = 'o', pch = 16,
+     ylim = c(min(ks$lcl,na.rm=T), max(ks$ucl,na.rm=T)))
+abline(h = mean(ks$k_ts,na.rm=T), lty = 5, col = 'gray')
+points(ks$year, ks$lcl, typ = 'l', lty = 1, col = 2)
+points(ks$year, ks$ucl, typ = 'l', lty = 1, col = 2)
+grid()
 ### end
 
 
@@ -464,5 +494,65 @@ for(i in years){
 # If \(b<3\), it indicates negative allometric growth, meaning the fish becomes slimmer as it gets longer.
 # If \(b>3\), it indicates positive allometric growth, meaning the fish gains weight more quickly than its length.
 
+dat_laa <- subset(gulf_dat, final_age > 1 & final_age < 9) |>
+  subset(state!="MEX" & state!='MS' & state!='AL') |>
+  subset(gear_common=="HL" | gear_common=='GN') |>
+  subset(mode_2=="COM" | mode_2=='REC')
+
+dat_laa$wh_kg[which(dat_laa$wh_kg>100)] <- NA
+boxplot(wh_kg ~ gear_common, data = dat_laa, varwidth = T)
+boxplot(wh_kg ~ mode_2, data = dat_laa, varwidth = T)
+boxplot(wh_kg ~ state, data = dat_laa, varwidth = T)
 
 
+library(propagate)
+library(scales)
+
+plot(dat_all$fl_mm, dat_all$wh_kg, ylim = c(0,35), pch = 16, col = alpha(1, .2))
+points(dat_laa$fl_mm, dat_laa$wh_kg, pch = 16, , col = alpha(4, .2))
+
+lw_eq <- formula(wh_kg ~ a * fl_mm ^ b)
+
+lw_res_all <- nls(lw_eq, data = dat_all, start = c(a = .5, b = 3))
+summary(lw_res_all)
+residuals(lw_res_all) |> hist()
+preds_all <- data.frame(x = dat_all$fl_mm[-lw_res_all$na.action],
+                    y = predict(lw_res_all,newdata = dat_all$fl_mm)) |>
+  arrange(x)
+
+lw_res_laa <- nls(lw_eq, data = dat_laa, start = c(a = .5, b = 3))
+summary(lw_res_laa)
+residuals(lw_res_laa) |> hist()
+preds_laa <- data.frame(x = dat_laa$fl_mm[-lw_res_laa$na.action],
+                    y = predict(lw_res_laa,newdata = dat_laa$fl_mm)) |>
+  arrange(x)
+# preds2 <- predictNLS(lw_res_all, interval = c("confidence"), alpha = 0.05, nsim = 10000)
+
+dat_laa_om <- dat_laa[-lw_res_laa$na.action, ]
+dat_laa_om$resid <- residuals(lw_res_laa)
+
+boxplot(resid ~ year, data = dat_laa_om)
+abline(h=0, lwd = 1.5, col = 2, lty = 5)
+boxplot(wh_kg ~ year, data = dat_laa_om)
+boxplot(wh_kg ~ final_age, data = dat_laa_om)
+
+
+plot(dat_laa$fl_mm, dat_laa$wh_kg, ylim = c(0,35))
+lines(preds$x, preds$y, lwd = 3, col = 2)
+
+plot(dat_all$fl_mm, dat_all$wh_kg, ylim = c(0,35), pch = 16, col = alpha(1, .2))
+points(dat_laa$fl_mm, dat_laa$wh_kg, pch = 16, , col = alpha(4, .2))
+lines(preds_all$x, preds_all$y, lwd = 3, col = 2)
+lines(preds_laa$x, preds_laa$y, lwd = 3, col = 3)
+
+
+
+# GSI ---------------------------------------------------------------------
+
+table(dat_38u$REPRO_PHASE, dat_38u$CATCH_MONTH)
+
+gsi <- dat_38u$GONAD_WEIGHT_FRESH_G/dat_38u$WHOLE_WEIGHT_G
+
+boxplot(gsi~dat_38u$CATCH_YEAR)
+boxplot(gsi~dat_38u$CATCH_MONTH)
+boxplot(gsi~dat_38u$STATE_LANDED)
