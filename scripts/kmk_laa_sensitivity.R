@@ -11,6 +11,7 @@ library(dplyr)
 library(here)
 library(lubridate)
 library(readxl)
+library(scales)
 library(stringr)
 library(viridis)
 
@@ -185,8 +186,8 @@ for(i in yrs){
   
   vsv1 <- findGrowthStarts(fl_mm ~ final_age, data = tmp,
                            type = "von Bertalanffy", pname = "Typical", plot = F,
-                           fixed=c(t0=-2))
-  mtext(i)
+                           fixed=c(t0=0))
+  # mtext(i)
 
   resv1 <- nls(fl_mm ~ vb1(final_age, Linf, K, t0), data=tmp, start=vsv1)
   output[[i-1985]] <- cbind(Est=coef(resv1),confint(resv1))
@@ -195,7 +196,7 @@ for(i in yrs){
   rsv2  <- findGrowthStarts(fl_mm ~ final_age, data = tmp,
                             type = typ, pname = prm,
                             constvals = cv2, plot = F) 
-  mtext(i)
+  # mtext(i)
 
   resv2 <- nls(fl_mm ~ vb2(final_age, L1, L2, L3, t1 = cv2),
                data = tmp,
@@ -204,10 +205,12 @@ for(i in yrs){
 }
 
 k_ts <- unlist(output)[seq(2,9*32,9)]
+l_ts <- unlist(output)[seq(1,9*32,9)]
 
-plot(yrs, k_ts, typ = 'o')
+plot(yrs, log(k_ts), typ = 'o')
+plot(yrs, l_ts, typ = 'o')
 plot(yrs, r, typ = 'o')
-
+plot(gulf_dat$final_age, gulf_dat$fl_mm)
 
 yrs <- sort(unique(satl_dat$year))
 output <- list()
@@ -218,7 +221,7 @@ for(i in yrs){
   vsv1 <- findGrowthStarts(fl_mm ~ final_age, data = tmp,
                            type = "von Bertalanffy", pname = "Typical", plot = F)
                            # fixed=c(t0=-2))
-  mtext(i)
+  # mtext(i)
 
   resv1 <- nls(fl_mm ~ vb1(final_age, Linf, K, t0), data=tmp, start=vsv1)
   output[[i-1985]] <- cbind(Est=coef(resv1),confint(resv1))
@@ -227,7 +230,7 @@ for(i in yrs){
   rsv2  <- findGrowthStarts(fl_mm ~ final_age, data = tmp,
                             type = typ, pname = prm,
                             constvals = cv2, plot = F) 
-  mtext(i)
+  # mtext(i)
   
   resv2 <- nls(fl_mm ~ vb2(final_age, L1, L2, L3, t1 = cv2),
                data = tmp,
@@ -236,11 +239,27 @@ for(i in yrs){
 }
 
 k_ts <- unlist(output)[seq(2,9*32,9)]
+l_ts <- unlist(output)[seq(1,9*32,9)]
 
-plot(yrs, k_ts, typ = 'o')
+plot(yrs, log(k_ts), typ = 'o')
+plot(yrs, l_ts, typ = 'o')
 plot(yrs, r, typ = 'o')
+plot(satl_dat$final_age, satl_dat$fl_mm)
 
+sep_age_m <- aggregate(fl_mm ~ final_age + stock_id_2, data = dat_all, mean, na.rm = T)
+all_age_m <- aggregate(fl_mm ~ final_age, data = dat_all, mean, na.rm = T)
 
+plot(dat_all$final_age, dat_all$fl_mm, pch = 16, col = alpha(1, .1))
+points(satl_dat$final_age+.5, satl_dat$fl_mm, pch = 16, col = alpha(4, .2))
+points(gulf_dat$final_age+.25, gulf_dat$fl_mm,  pch = 16, col = alpha(2, .2))
+with(subset(sep_age_m, stock_id_2=='GULF'),
+     points(final_age+.25, fl_mm, pch = 3, lwd = 2, col = 'green',typ='o'))
+with(subset(sep_age_m, stock_id_2=='SATL'),
+     points(final_age+.5, fl_mm, pch = 3, lwd = 2, col = 'orange',typ='o'))
+points(all_age_m$final_age, all_age_m$fl_mm, pch = 3, lwd = 2, col = 'gray40',typ='o')
+legend('bottomright',c('all','Gulf','SAtl','','',''),
+       pch = c(rep(16,3),rep(3,3)), col = c(1,2,4,'gray40','green','orange'),pt.lwd = 2,
+       ncol=2)
 
 # Sensitivities -----------------------------------------------------------
 library(minpack.lm)
@@ -441,6 +460,34 @@ years <- sort(unique(gulf_lth_yr$year))
 
 
 ### cohort plots
+
+### alternatively, take the raw, find the cohorts, estimate growth per cohort
+# plot those results
+# find a weighted growth per year, the weighted mean of all the cohorts per year (weights are sample sizes)
+library(vctrs)
+
+years <- sort(unique(gulf_dat$year))
+i=1989
+for(i in years){
+  out <- mapply(function(x,y) subset(gulf_dat, year==x & final_age==y),
+                i:(i+6),2:8, SIMPLIFY = F) #|> 
+    # unlist()
+  co_i <- vec_rbind(!!!out)
+  plot(co_i$final_age, co_i$fl_mm)
+  
+  vsv1 <- findGrowthStarts(fl_mm ~ final_age, data = co_i,
+                           type = "von Bertalanffy", pname = "Typical", plot = T)
+  
+  resv1 <- nls(fl_mm ~ vb1(final_age, Linf, K, t0), data=tmp, start=vsv1)
+  output[[i-1985]] <- cbind(Est=coef(resv1),confint(resv1))
+  
+  # out <- matrix(out, 3, length(out)/3) |> t() |> as.data.frame()
+  # n <- n + nrow(out)
+  # cohorts[m:n, ] <- cbind(out, i)
+  # m <- n + 1
+}
+
+
 ### for each year, pull age 2, create a vector (year, length) for that class
 m <- 1
 n <- 0
