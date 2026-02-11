@@ -1352,3 +1352,5 @@ boxplot(kmk_pro ~ LAND_MONTH, data = tot_landm)
 boxplot(kmk_pro ~ REGION + LAND_YEAR, data = tot_landm, col = c('gray','purple'))
 
 
+spp_tab <- table(cflp_hl_1$COMMON_NAME, cflp_hl_1$REGION) |> as.data.frame() |> 
+  reshape(idvar='Var1',timevar='Var2',direction='wide')
