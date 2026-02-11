@@ -24,9 +24,9 @@ sz_shp <- vect('CFLP_StatGrid_2013_v20140210.shp') |>
   st_as_sf()
 sz_shp$AREA_FISHED <- sz_shp$SZ_ID
 
-# plot(kmk, border = 4, lwd = 2)
-# plot(world, add = T, col = 'gray50')
-# plot(st_geometry(sz_shp), add = T)
+plot(kmk, border = 4, lwd = 2)
+plot(world, add = T, col = 'gray50')
+plot(st_geometry(sz_shp), add = T)
 
 
 natl_st <- c('ME', 'NH', 'MA', 'RI', 'CT', 'NY', 'NJ', 'DE', 'MD', 'VA')
@@ -473,7 +473,7 @@ with(subset(days_yr_region, REGION=='GOM'),
      points(LAND_YEAR, days_away_corrected, typ = 'o', pch = 16))
 with(subset(days_yr_region, REGION=='SATL'),
      points(LAND_YEAR, days_away_corrected, typ = 'o', pch = 16, col = 2))
-legend('topleft', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
+legend('topright', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
 abline(lm(days_away_corrected ~ LAND_YEAR,
           data = subset(days_yr_region, REGION=='GOM')), col = 1)
 abline(lm(days_away_corrected ~ LAND_YEAR,
@@ -481,13 +481,13 @@ abline(lm(days_away_corrected ~ LAND_YEAR,
 
 
 with(days_yr_region_sd,
-     plot(LAND_YEAR, days_away_corrected, typ = 'n'))
+     plot(LAND_YEAR, days_away_corrected, typ = 'n', ylab = 'Length of trip (st.dev)'))
 grid()
 with(subset(days_yr_region_sd, REGION=='GOM'),
      points(LAND_YEAR, days_away_corrected, typ = 'o', pch = 16))
 with(subset(days_yr_region_sd, REGION=='SATL'),
      points(LAND_YEAR, days_away_corrected, typ = 'o', pch = 16, col = 2))
-legend('topleft', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
+legend('bottomleft', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
 abline(lm(days_away_corrected ~ LAND_YEAR,
           data = subset(days_yr_region_sd, REGION=='GOM')), col = 1)
 abline(lm(days_away_corrected ~ LAND_YEAR,
@@ -530,7 +530,7 @@ with(subset(hrs_yr, REGION=='SATL' &
               COMMON_NAME=='MACKERELS, KING AND CERO'),
      points(LAND_YEAR, FISHED, typ = 'o', pch = 16, col = 2))
 # abline(v = 2013, lty = 5)
-legend('topleft', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
+legend('topright', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
 abline(lm(FISHED ~ LAND_YEAR,
           data = subset(hrs_yr, REGION=='GOM' &
                           COMMON_NAME=='MACKERELS, KING AND CERO')), col = 1)
@@ -751,14 +751,14 @@ plot(aggregate(AREA_FISHED ~ LAND_YEAR,
 grid()
 dev.off()
 
-
-plot(aggregate(AREA_FISHED ~ LAND_YEAR, 
-               data = subset(cpue_yr_area_region,
-                             REGION=='GOM' &
-                               COMMON_NAME=='MACKERELS, KING AND CERO'),
-               length),
-     typ = 'o',ylab = 'Number of areas fished', pch = 16)
-grid()
+### switch from shrimp stat zones to ATL stat grids 2012
+# plot(aggregate(AREA_FISHED ~ LAND_YEAR, 
+#                data = subset(cpue_yr_area_region,
+#                              REGION=='GOM' &
+#                                COMMON_NAME=='MACKERELS, KING AND CERO'),
+#                length),
+#      typ = 'o',ylab = 'Number of areas fished', pch = 16)
+# grid()
 
 par(mfrow = c(1,1), mar = c(4,4,1,1))
 plot(aggregate(AREA_FISHED ~ LAND_YEAR, 
@@ -817,10 +817,10 @@ legend(-97.5, 26.5,
 dev.off()
 
 
-### aggregations
+### aggregations; median was used originially
 cpue_yr_area <- aggregate(cpue ~ LAND_YEAR + AREA_FISHED + COMMON_NAME,
                           data = cflp_hl_1,
-                          median, na.rm = T)
+                          mean, na.rm = T)
 
 land_yr_area <- aggregate(tot_kg ~ LAND_YEAR + AREA_FISHED + COMMON_NAME,
                           data = cflp_hl_1,
@@ -828,7 +828,7 @@ land_yr_area <- aggregate(tot_kg ~ LAND_YEAR + AREA_FISHED + COMMON_NAME,
 
 days_yr_area <- aggregate(FISHED ~ LAND_YEAR + AREA_FISHED + COMMON_NAME,
                           data = cflp_hl_1,
-                          median, na.rm = T)
+                          mean, na.rm = T)
 
 ves_yr_area <- aggregate(VESSEL_ID ~ LAND_YEAR + AREA_FISHED + COMMON_NAME,
                          data = cflp_hl_1,
@@ -1214,13 +1214,13 @@ cpue_mth_area <- aggregate(cpue ~ LAND_MONTH + AREA_FISHED,
                            data = subset(cflp_hl_1, 
                                          COMMON_NAME=='MACKERELS, KING AND CERO' &
                                            LAND_YEAR>2012),
-                           median, na.rm = T)
+                           mean, na.rm = T)
 
 land_mth_area <- aggregate(tot_kg ~ LAND_MONTH + AREA_FISHED,
                            data = subset(cflp_hl_1, 
                                          COMMON_NAME=='MACKERELS, KING AND CERO' &
                                            LAND_YEAR>2012),
-                           median, na.rm = T)
+                           mean, na.rm = T)
 gc()
 
 
