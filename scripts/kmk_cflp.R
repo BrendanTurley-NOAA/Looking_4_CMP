@@ -659,13 +659,13 @@ image(2000:2023, 1:12,
       las = 1, xlab = 'year', ylab = 'month',
       breaks = seq(0,.8,.05), col = cmocean('dense')(16))
 
-image(2000:2023, 1:12,
-      gfl_hov_landings,
-      las = 1, xlab = 'year', ylab = 'month')
+# image(2000:2023, 1:12,
+#       gfl_hov_landings,
+#       las = 1, xlab = 'year', ylab = 'month')
 
-image(2000:2023, 1:12,
-      gla_hov_landings,
-      las = 1, xlab = 'year', ylab = 'month')
+# image(2000:2023, 1:12,
+#       gla_hov_landings,
+#       las = 1, xlab = 'year', ylab = 'month')
       
 ### test for weeks
 yr_week <- expand.grid(week = 1:53, LAND_YEAR = 2000:2023)
@@ -738,7 +738,7 @@ axis(1, seq(1.5, 48.5, 2), 2000:2023, las = 2)
 legend('topleft',c('Gulf', 'SAtl'), fill = c('gray', 'purple'))
 
 
-setwd("~/R_projects/misc-noaa-scripts/figs")
+setwd("~/R_projects/Looking_4_CMP/figs")
 png('kmk_cpue_area2.png', width = 8, height = 5, units = 'in', res = 300)
 par(mfrow = c(1,1), mar = c(4,4,1,1))
 plot(aggregate(AREA_FISHED ~ LAND_YEAR, 
@@ -805,7 +805,7 @@ kmk_areas2 <-  merge(area_cnt2,
 plot(kmk_areas2['LAND_YEAR'], pal = c('magenta2','purple4'))
 
 
-setwd("~/R_projects/misc-noaa-scripts/figs")
+setwd("~/R_projects/Looking_4_CMP/figs")
 png('kmk_areas_map.png', width = 7, height = 4, units = 'in', res = 300)
 plot(world, xlim = c(-97.5,-80), ylim = c(24, 31))
 plot(kmk_areas['LAND_YEAR'], pal = 'gray90', breaks = c(0,100), add=T)
@@ -931,7 +931,7 @@ pal5 <- cmocean('rain')(length(brks5)-1)
 
 
 { ### CPUE by year
-  setwd("~/R_projects/misc-noaa-scripts/figs")
+  setwd("~/R_projects/Looking_4_CMP/figs")
   png('kmk_cpue_yr.png', width = 10, height = 7, units = 'in', res = 300)
   par(mfrow=c(4,3))
   for(i in 2013:2023){
@@ -947,7 +947,7 @@ pal5 <- cmocean('rain')(length(brks5)-1)
   }
   dev.off()
   
-  setwd("~/R_projects/misc-noaa-scripts/figs")
+  setwd("~/R_projects/Looking_4_CMP/figs")
   png('kmk_cpue_yr_cb.png', width = 1.5, height = 7, units = 'in', res = 300)
   par(mar = c(1,1,1,4))
   image(1, seq(min(brks)+1,max(brks)-1,2), 
@@ -960,7 +960,7 @@ pal5 <- cmocean('rain')(length(brks5)-1)
 
 
 { ### Landings by year
-  setwd("~/R_projects/misc-noaa-scripts/figs")
+  setwd("~/R_projects/Looking_4_CMP/figs")
   png('kmk_land_yr.png', width = 10, height = 7, units = 'in', res = 300)
   par(mfrow=c(4,3))
   for(i in 2013:2023){
@@ -976,7 +976,7 @@ pal5 <- cmocean('rain')(length(brks5)-1)
   dev.off()
   
   brks2.2 <- brks2/1e4
-  setwd("~/R_projects/misc-noaa-scripts/figs")
+  setwd("~/R_projects/Looking_4_CMP/figs")
   png('kmk_land_yr_cb.png', width = 1.5, height = 7, units = 'in', res = 300)
   par(mar = c(1,1,1,4))
   image(1, seq(min(brks2.2)+.5,max(brks2.2)-.5,1), 
@@ -989,7 +989,7 @@ pal5 <- cmocean('rain')(length(brks5)-1)
 
 
 { ### hours by year
-  setwd("~/R_projects/misc-noaa-scripts/figs")
+  setwd("~/R_projects/Looking_4_CMP/figs")
   png('kmk_hrs_yr.png', width = 10, height = 7, units = 'in', res = 300)
   par(mfrow=c(4,3))
   for(i in 2013:2023){
@@ -1004,7 +1004,7 @@ pal5 <- cmocean('rain')(length(brks5)-1)
   }
   dev.off()
   
-  setwd("~/R_projects/misc-noaa-scripts/figs")
+  setwd("~/R_projects/Looking_4_CMP/figs")
   png('kmk_hrs_yr_cb.png', width = 1.5, height = 7, units = 'in', res = 300)
   par(mar = c(1,1,1,4))
   image(1, seq(min(brks4)+1,max(brks4)-1,2), 
@@ -1017,7 +1017,7 @@ pal5 <- cmocean('rain')(length(brks5)-1)
 
 
 { ### Vessels by year
-  setwd("~/R_projects/misc-noaa-scripts/figs")
+  setwd("~/R_projects/Looking_4_CMP/figs")
   png('kmk_ves_yr.png', width = 10, height = 7, units = 'in', res = 300)
   par(mfrow=c(4,3))
   for(i in 2013:2023){
@@ -1032,7 +1032,7 @@ pal5 <- cmocean('rain')(length(brks5)-1)
   }
   dev.off()
   
-  setwd("~/R_projects/misc-noaa-scripts/figs")
+  setwd("~/R_projects/Looking_4_CMP/figs")
   png('kmk_ves_yr_cb.png', width = 1.5, height = 7, units = 'in', res = 300)
   par(mar = c(1,1,1,4))
   image(1, seq(min(brks3)+1,max(brks3)-1,2), 
@@ -1045,7 +1045,7 @@ pal5 <- cmocean('rain')(length(brks5)-1)
 
 
 { ### Trips by year
-  setwd("~/R_projects/misc-noaa-scripts/figs")
+  setwd("~/R_projects/Looking_4_CMP/figs")
   png('kmk_trp_yr.png', width = 10, height = 7, units = 'in', res = 300)
   par(mfrow=c(4,3))
   for(i in 2013:2023){
@@ -1060,7 +1060,7 @@ pal5 <- cmocean('rain')(length(brks5)-1)
   }
   dev.off()
   
-  setwd("~/R_projects/misc-noaa-scripts/figs")
+  setwd("~/R_projects/Looking_4_CMP/figs")
   png('kmk_trp_yr_cb.png', width = 1.5, height = 7, units = 'in', res = 300)
   par(mar = c(1,1,1,4))
   image(1, seq(min(brks5)+1,max(brks5)-1,2), 
@@ -1096,7 +1096,7 @@ kmk_tmp <- subset(cflp_hl_1,
   merge(sz_shp,
         by = c('AREA_FISHED'))
 kmk_tmp <- kmk_tmp[order(kmk_tmp$LAND_YEAR),]
-
+kmk_tmp$month_fac <- as.factor(kmk_tmp$LAND_MONTH)
 
 afs <- unique(kmk_tmp$AREA_FISHED)
 lm_cpue <- lm_landings  <- lm_effort <- matrix(NA,length(afs),3) |> as.data.frame()
@@ -1106,15 +1106,15 @@ for(i in afs){
   if(length(unique(tmp$LAND_YEAR)) > 3){
     res1 <- lm(cpue ~ LAND_YEAR + LAND_MONTH, data = tmp) |>
       summary()
-    lm_cpue[n,] <- c(coef(res1)[c(2,8)],res1$adj.r.squared)
+    lm_cpue[n,] <- c(coef(res1)[2,c(1,4)],res1$adj.r.squared)
     
     res2 <- lm(tot_kg ~ LAND_YEAR + LAND_MONTH, data = tmp) |>
       summary()
-    lm_landings[n,] <- c(coef(res2)[c(2,8)],res2$adj.r.squared)
+    lm_landings[n,] <- c(coef(res2)[2,c(1,4)],res2$adj.r.squared)
     
     res3 <- lm(pue ~ LAND_YEAR + LAND_MONTH, data = tmp) |>
       summary()
-    lm_effort[n,] <- c(coef(res3)[c(2,8)],res3$adj.r.squared)
+    lm_effort[n,] <- c(coef(res3)[2,c(1,4)],res3$adj.r.squared)
   }
   # if(nrow(tmp) > 3){
   #   res <- cor.test(tmp$cpue, tmp$LAND_YEAR,
@@ -1203,6 +1203,19 @@ plot(out['cpue_r2'])
 plot(out['tot_kg_r2'])
 plot(out['effort_r2'])
 
+par(mfrow=c(3,1))
+plot(world, xlim = c(-98,-79), ylim = c(24, 31))
+plot(out['cpue_slope2'],
+     breaks = brks_pal1[[1]], pal = brks_pal1[[2]],
+     reset = F, key.pos = 4, add= T)
+plot(world, xlim = c(-98,-79), ylim = c(24, 31))
+plot(out['tot_kg_slope2'],  
+     breaks = brks_pal3[[1]], pal = brks_pal3[[2]],
+     reset = F, key.pos = 4, add = T)
+plot(world, xlim = c(-98,-79), ylim = c(24, 31))
+plot(out['effort_slope2'], 
+     breaks = brks_pal5[[1]], pal = brks_pal5[[2]], 
+     reset = F, key.pos = 4, add= T)
 
 
 #### spatial monthly ####-------------------------------------------------------
@@ -1252,7 +1265,8 @@ brks2 <- seq(0, 1000, 50)
 # pal <- cmocean('thermal')(length(brks)-1)
 pal2 <- rev(mako(length(brks2)-1))
 
-
+setwd("~/R_projects/Looking_4_CMP/figs")
+png('kmk_cpue_mth.png', width = 9, height = 10, units = 'in', res = 300)
 par(mfrow=c(4,3), mar = c(1,1,1,4))
 for(i in 1:12){
   kmk_tmp <- subset(kmk_shp, LAND_MONTH==i) %>%
@@ -1263,7 +1277,10 @@ for(i in 1:12){
        add = T)
   mtext(i)
 }
+dev.off()
 
+setwd("~/R_projects/Looking_4_CMP/figs")
+png('kmk_tot-kg_mth.png', width = 9, height = 10, units = 'in', res = 300)
 par(mfrow=c(4,3), mar = c(1,1,1,4))
 for(i in 1:12){
   kmk_tmp <- subset(kmk_shp, LAND_MONTH==i) %>%
@@ -1275,6 +1292,7 @@ for(i in 1:12){
        add = T)
   mtext(i)
 }
+dev.off()
 
 
 
@@ -1325,6 +1343,64 @@ summary(subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO'))
 quantile(subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO', select = 'cpue'),
          na.rm = T, seq(0,1,.01))
 
+
+
+cflp_hl_1$cnty_st <- paste(cflp_hl_1$CNTY_FIPS_NAME, cflp_hl_1$ST_ABRV)
+aggregate(tot_kg ~ cnty_st + REGION, data = cflp_hl_1, sum, na.rm = T) |> View()
+aggregate(tot_kg ~ cnty_st + LAND_YEAR, data = cflp_hl_1, sum, na.rm = T) |>
+  group_by(cnty_st) |>
+  summarise(tot_kg = mean(tot_kg, na.rm = T)) |> View()
+
+
+cnty <- c('MONROE FL', 'COLLIER FL', 'PINELLAS FL', 'BAY FL', 'OKALOOSA FL','MOBILE AL',
+          'PLAQUEMINES LA','LAFOURCHE LA','JEFFERSON LA','CAMERON LA', 'GALVESTON TX')
+
+cnty_kmk <- subset(cflp_hl_1, cnty_st %in% cnty & COMMON_NAME=='MACKERELS, KING AND CERO')
+
+i=1
+par(mfrow=c(3,4),mar=c(4,4,2,1))
+for(i in 1:length(cnty)){
+  subset(cnty_kmk, cnty_st==cnty[i]) |> 
+    group_by(LAND_MONTH) |>
+    summarise(tot_kg = sum(tot_kg, na.rm = T)/1e3) |> 
+    plot(,typ = 'h', lwd = 10, lend = 2, xlim = c(1,12))
+  mtext(cnty[i])
+}
+
+par(mfrow=c(4,6),mar=c(4,4,2,1),oma=c(0,0,3,0))
+for(i in 1:length(cnty)){
+  for(j in 2000:2023){
+    if(nrow(subset(cnty_kmk, cnty_st==cnty[i] & LAND_YEAR==j))!=0){
+    subset(cnty_kmk, cnty_st==cnty[i] & LAND_YEAR==j) |> 
+      group_by(LAND_MONTH) |>
+      summarise(tot_kg = sum(tot_kg, na.rm = T)/1e3) |> 
+      plot(typ = 'h', lwd = 7, lend = 2, xlim = c(1,12))
+    mtext(j)
+  } else {
+    plot(1,1,xlim = c(1,12), typ = 'n')
+    mtext(j)
+  }
+  }
+  mtext(cnty[i], outer = T)
+}
+
+
+par(mfrow=c(4,6),mar=c(4,4,2,1),oma=c(0,0,3,0))
+for(i in 1:length(cnty)){
+  for(j in 2000:2023){
+    if(nrow(subset(cnty_kmk, cnty_st==cnty[i] & LAND_YEAR==j))!=0){
+      subset(cnty_kmk, cnty_st==cnty[i] & LAND_YEAR==j) |> 
+        group_by(LAND_MONTH) |>
+        summarise(cpue = mean(cpue, na.rm = T)) |> 
+        plot(typ = 'h', lwd = 7, lend = 2, xlim = c(1,12))
+      mtext(j)
+    } else {
+      plot(1,1,xlim = c(1,12), typ = 'n')
+      mtext(j)
+    }
+  }
+  mtext(cnty[i], outer = T)
+}
 
 
 
