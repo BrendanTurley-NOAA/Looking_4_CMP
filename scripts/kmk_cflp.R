@@ -1346,19 +1346,29 @@ quantile(subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO', select = 'cp
 
 
 cflp_hl_1$cnty_st <- paste(cflp_hl_1$CNTY_FIPS_NAME, cflp_hl_1$ST_ABRV)
-aggregate(tot_kg ~ cnty_st + REGION, data = cflp_hl_1, sum, na.rm = T) |> View()
-aggregate(tot_kg ~ cnty_st + LAND_YEAR, data = cflp_hl_1, sum, na.rm = T) |>
+aggregate(tot_kg ~ cnty_st + REGION, 
+          data = subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO'),
+          sum, na.rm = T) |> View()
+aggregate(tot_kg ~ cnty_st + LAND_YEAR, 
+          data = subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO'),
+          sum, na.rm = T) |>
   group_by(cnty_st) |>
   summarise(tot_kg = mean(tot_kg, na.rm = T)) |> View()
 
+kmk_mth_m <- aggregate(tot_kg ~ cnty_st + LAND_MONTH, 
+          data = subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO'),
+          sum, na.rm = T) |>
+  group_by(cnty_st) |>
+  summarise(tot_kg = mean(tot_kg, na.rm = T))
+
 
 cnty <- c('MONROE FL', 'COLLIER FL', 'PINELLAS FL', 'BAY FL', 'OKALOOSA FL','MOBILE AL',
-          'PLAQUEMINES LA','LAFOURCHE LA','JEFFERSON LA','CAMERON LA', 'GALVESTON TX')
+          'PLAQUEMINES LA','LAFOURCHE LA','JEFFERSON LA','CAMERON LA', 'GALVESTON TX',
+          'BRAZORIA TX', 'HARRIS TX')
 
 cnty_kmk <- subset(cflp_hl_1, cnty_st %in% cnty & COMMON_NAME=='MACKERELS, KING AND CERO')
 
-i=1
-par(mfrow=c(3,4),mar=c(4,4,2,1))
+par(mfrow=c(4,4),mar=c(4,4,2,1))
 for(i in 1:length(cnty)){
   subset(cnty_kmk, cnty_st==cnty[i]) |> 
     group_by(LAND_MONTH) |>
@@ -1376,6 +1386,7 @@ for(i in 1:length(cnty)){
       summarise(tot_kg = sum(tot_kg, na.rm = T)/1e3) |> 
       plot(typ = 'h', lwd = 7, lend = 2, xlim = c(1,12))
     mtext(j)
+    abline(h = subset(kmk_mth_m, cnty_st==cnty[i], select = tot_kg), lty = 5)
   } else {
     plot(1,1,xlim = c(1,12), typ = 'n')
     mtext(j)
