@@ -1357,7 +1357,7 @@ aggregate(tot_kg ~ cnty_st + LAND_YEAR,
 
 kmk_mth_m <- aggregate(tot_kg ~ cnty_st + LAND_MONTH, 
           data = subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO'),
-          sum, na.rm = T) |>
+          mean, na.rm = T) |>
   group_by(cnty_st) |>
   summarise(tot_kg = mean(tot_kg, na.rm = T))
 
