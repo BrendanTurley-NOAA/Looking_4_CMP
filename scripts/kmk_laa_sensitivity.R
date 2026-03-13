@@ -231,7 +231,7 @@ gulf_dat <- subset(dat_all, stock_id_2 == 'GULF') |>
   subset(state!="MEX" & state!='MA' & state!='VA') |>
   subset(gear_common=='HL') |>
   subset(mode_2=="COM" | mode_2=='REC') |>
-  subset(final_age>0 & sex == 'F')
+  subset(final_age>1 & sex == 'F' & final_age<11)
 
 satl_dat <- subset(dat_all, stock_id_2 == 'SATL') |>
   subset(state!="MEX" & state!='MA' & state!='VA') |>
@@ -300,7 +300,7 @@ gulf_dat2 <- subset(dat_all, stock_id_2 == 'GULF') |>
   subset(state!="MEX" & state!='MA' & state!='VA') |>
   subset(gear_common=='HL') |>
   subset(mode_2=="COM" | mode_2=='REC') |>
-  subset(final_age>1 & sex == 'F' & final_age<11)
+  subset(final_age>1 & sex == 'F' & final_age<10)
 
 gulf_full <- nlsLM(fl_mm ~ vb2(final_age, Linf, K, L0), data=gulf_dat2, 
                    start=c(Linf=1300, K=.2, L0=10),
@@ -640,7 +640,7 @@ gulf_dat <- subset(dat_all, stock_id_2 == 'GULF') |>
   subset(state!="MEX" & state!='MA' & state!='VA') |>
   subset(gear_common=='HL') |>
   subset(mode_2=="COM" | mode_2=='REC') |>
-  subset(final_age>1 & sex == 'M' & final_age<11)
+  subset(final_age>1 & sex == 'F' & final_age<10)
 plot(gulf_dat$final_age, gulf_dat$fl_mm)
 plot(gulf_dat$year, gulf_dat$fl_mm)
 image(kde2d(gulf_dat$year, gulf_dat$final_age, 
