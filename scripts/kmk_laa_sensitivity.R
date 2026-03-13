@@ -19,6 +19,7 @@ library(FSA)
 library(nlstools)
 library(vctrs)
 library(minpack.lm)
+library(MASS)
 
 
 setwd(paste0(here()))
@@ -102,7 +103,7 @@ dat_38ur$gut_kg <- dat_38ur$GUTTED_WEIGHT_G/1000
 keep_38r <- c(11,1,2,12,3,5,13,7,6,9,10,8)
 keep_38ur <- c(15,6,7,4,1,3,14,13,9,16,17,12)
 # cbind(names(dat_38r)[keep_38r],
-      # names(dat_38ur)[keep_38ur])
+# names(dat_38ur)[keep_38ur])
 dat_38rr <- dat_38r[ ,keep_38r] 
 dat_38urr <- dat_38ur[ ,keep_38ur]
 names(dat_38urr) <- names(dat_38rr)
@@ -132,7 +133,7 @@ with(aggregate(final_age ~ year, data = subset(dat_laa, stock_id_2 == 'SATL'),
 all_yrs <- expand.grid(year = 1986:2017, final_age = 0:24)
 
 gulf_yrage <- aggregate(fl_mm ~ year + final_age, data = subset(dat_laa, stock_id_2 == 'GULF'),
-          function(x) length(x)) |>
+                        function(x) length(x)) |>
   merge(all_yrs, by = c('year','final_age'), all = T) |>
   arrange(year, final_age) |>
   reshape(idvar = 'final_age', timevar = 'year', direction = 'wide')
@@ -183,7 +184,7 @@ vb2_form <- formula(fl_mm ~ Linf - (Linf - L0) * exp(-K * final_age))
 
 
 vsv1 <- findGrowthStarts(fl_mm ~ final_age, data = gulf_dat,
-                           type = "von Bertalanffy", pname = "Typical", plot = T)
+                         type = "von Bertalanffy", pname = "Typical", plot = T)
 vsv2 <- findGrowthStarts(fl_mm ~ final_age, data = gulf_dat,
                          type = "von Bertalanffy", pname = "Typical", plot = T,
                          fixed = c(t0 = -1))
@@ -258,7 +259,7 @@ for(i in yrs){
   #                          type = "von Bertalanffy", pname = "Typical", plot = F,
   #                          fixed=c(t0=0))
   # mtext(i)
-
+  
   # resv1 <- nls(fl_mm ~ vb1(final_age, Linf, K, t0), data=tmp, start=vsv1)
   # output[[i-1985]] <- cbind(Est=coef(resv1),confint(resv1))
   
@@ -266,7 +267,7 @@ for(i in yrs){
                  start=c(Linf=1300, K=.2, L0=10),
                  control = nls.lm.control(maxiter = 1024, maxfev = 10000))
   output[i-1985,] <- rbind(coef(resv1))
-
+  
   ### alternative
   # rsv2  <- findGrowthStarts(fl_mm ~ final_age, data = tmp,
   #                           type = typ, pname = prm,
@@ -295,6 +296,56 @@ with(subset(gulf_dat, year==2009),
      plot(final_age, fl_mm))
 
 
+gulf_dat2 <- subset(dat_all, stock_id_2 == 'GULF') |>
+  subset(state!="MEX" & state!='MA' & state!='VA') |>
+  subset(gear_common=='HL') |>
+  subset(mode_2=="COM" | mode_2=='REC') |>
+  subset(final_age>1 & sex == 'F' & final_age<11)
+
+gulf_full <- nlsLM(fl_mm ~ vb2(final_age, Linf, K, L0), data=gulf_dat2, 
+                   start=c(Linf=1300, K=.2, L0=10),
+                   control = nls.lm.control(maxiter = 1024, maxfev = 10000))
+gulf_full_out <- rbind(coef(gulf_full))
+gulf_full_out
+
+yrs <- sort(unique(gulf_dat2$year))
+# output <- list()
+output <- rep(NA, length(yrs))
+r <- rep(NA, length(yrs))
+for(i in yrs){
+  tmp <- subset(gulf_dat2, year==i)
+  # plot(tmp$final_age, tmp$fl_mm, col = as.factor(tmp$sex))
+  
+  # vsv1 <- findGrowthStarts(fl_mm ~ final_age, data = tmp,
+  #                          type = "von Bertalanffy", pname = "Typical", plot = F,
+  #                          fixed=c(t0=0))
+  # mtext(i)
+  
+  # resv1 <- nls(fl_mm ~ vb1(final_age, Linf, K, t0), data=tmp, start=vsv1)
+  # output[[i-1985]] <- cbind(Est=coef(resv1),confint(resv1))
+  
+  resv1 <- nlsLM(fl_mm ~ gulf_full_out[1] - (gulf_full_out[1] - gulf_full_out[3]) * exp(-K * final_age),
+                 data=tmp, 
+                 start=c(K=.2),
+                 control = nls.lm.control(maxiter = 1024, maxfev = 10000))
+  output[i-1985] <- rbind(coef(resv1))
+  
+  ### alternative
+  # rsv2  <- findGrowthStarts(fl_mm ~ final_age, data = tmp,
+  #                           type = typ, pname = prm,
+  #                           constvals = cv2, plot = F) 
+  # # mtext(i)
+  # 
+  # resv2 <- nls(fl_mm ~ vb2(final_age, L1, L2, L3, t1 = cv2),
+  #              data = tmp,
+  #              start = rsv2)
+  # r[i-1985] <- (coef(resv2)[3] - coef(resv2)[2]) / (coef(resv2)[2] - coef(resv2)[1])
+}
+
+plot(yrs, output, typ = 'o')
+points(smooth.spline(yrs, output, spar = .5), typ = 'l', col = 2, lwd = 2)
+
+
 yrs <- sort(unique(satl_dat$year))
 # output <- list()
 output <- matrix(NA, length(yrs), 3) |> as.data.frame()
@@ -304,7 +355,7 @@ for(i in yrs){
   
   # vsv1 <- findGrowthStarts(fl_mm ~ final_age, data = tmp,
   #                          type = "von Bertalanffy", pname = "Typical", plot = F)
-                           # fixed=c(t0=-2))
+  # fixed=c(t0=-2))
   # # mtext(i)
   # 
   # resv1 <- nls(fl_mm ~ vb1(final_age, Linf, K, t0), data=tmp, start=vsv1)
@@ -389,10 +440,10 @@ for(i in yrs){
   # mtext(i)
   
   resv1 <- try(nls(fl_mm ~ vb1(final_age, Linf, K, t0), 
-               data=tmp, start=c(Linf=1200, K=.1, t0=-2),
-               control = nls.control(minFactor = 1/4096, maxiter = 10000, printEval = T),
-               algorithm = "port"), silent = TRUE)
-
+                   data=tmp, start=c(Linf=1200, K=.1, t0=-2),
+                   control = nls.control(minFactor = 1/4096, maxiter = 10000, printEval = T),
+                   algorithm = "port"), silent = TRUE)
+  
   # resv1 <- try(nlsLM(vb1_form, data = tmp, start=c(Linf=1200, K=.1, t0=-2), jac = NULL,
   #       algorithm = "LM", control = nls.lm.control(maxiter = 1024, maxfev = 10000),
   #       lower = NULL, upper = NULL, trace = FALSE), silent = TRUE)
@@ -422,7 +473,7 @@ ks <- data.frame(year = yrs,
                  k_ts = unlist(output)[seq(2,9*32,9)],
                  lcl = unlist(output)[seq(5,9*32,9)],
                  ucl = unlist(output)[seq(8,9*32,9)]) #|>
-  # na.omit()
+# na.omit()
 
 plot(ks$year, log(ks$k_ts), typ = 'o', pch = 16)
 
@@ -441,13 +492,13 @@ grid()
 par(mfrow=c(3,3))
 
 gulf_all <- findGrowthStarts(fl_mm ~ final_age, data = gulf_dat,
-                          type = "von Bertalanffy", pname = "Typical", plot = T)
+                             type = "von Bertalanffy", pname = "Typical", plot = T)
 
 table(gulf_dat$gear_common)
 gulf_gear <- subset(gulf_dat, gear_common=="HL" | gear_common=='GN')
 table(gulf_gear$gear_common)
 gg_vb <- findGrowthStarts(fl_mm ~ final_age, data = gulf_gear,
-                         type = "von Bertalanffy", pname = "Typical", plot = T)
+                          type = "von Bertalanffy", pname = "Typical", plot = T)
 
 table(gulf_dat$mode_2)
 gulf_mode <- subset(gulf_dat, mode_2=="COM" | mode_2=='REC')
@@ -471,12 +522,12 @@ table(gulf_dat$sex)
 gulf_sex <- subset(gulf_dat, sex=='F')
 table(gulf_sex$sex)
 gxf_vb <- findGrowthStarts(fl_mm ~ final_age, data = gulf_sex,
-                          type = "von Bertalanffy", pname = "Typical", plot = T)
+                           type = "von Bertalanffy", pname = "Typical", plot = T)
 
 gulf_sexm <- subset(gulf_dat, sex=='M')
 table(gulf_sexm$sex)
 gxm_vb <- findGrowthStarts(fl_mm ~ final_age, data = gulf_sexm,
-                          type = "von Bertalanffy", pname = "Typical", plot = T)
+                           type = "von Bertalanffy", pname = "Typical", plot = T)
 
 
 rbind(gulf_all,
@@ -552,9 +603,9 @@ grid()
 for(i in ages){
   tmp <- subset(gulf_lth_yr, final_age==i)
   tmp2 <- subset(gulf_samp, final_age==i)
-       points(tmp$year, tmp$fl_mm, typ = 'o', bg = i,
-              cex = (tmp2$fl_mm)/mean((gulf_samp$fl_mm)), pch = 21)
-              # cex = sqrt(tmp2$fl_mm)/2, pch = 21)
+  points(tmp$year, tmp$fl_mm, typ = 'o', bg = i,
+         cex = (tmp2$fl_mm)/mean((gulf_samp$fl_mm)), pch = 21)
+  # cex = sqrt(tmp2$fl_mm)/2, pch = 21)
 }
 points(gulf_lth$year, gulf_lth$fl_mm, lwd = 5, typ = 'l')
 
@@ -567,7 +618,7 @@ for(i in states){
   tmp2 <- subset(gulf_st_samp, state==i)
   points(tmp$year, tmp$fl_mm, typ = 'o', bg = which(i==states), col = which(i==states),
          cex = (tmp2$fl_mm)/mean((gulf_st_samp$fl_mm)), pch = pts[which(i==states)])
-         # cex = log(tmp2$fl_mm), pch = pts[which(i==states)])
+  # cex = log(tmp2$fl_mm), pch = pts[which(i==states)])
 }
 points(gulf_lth$year, gulf_lth$fl_mm, lwd = 5, typ = 'l')
 legend('topright',states, pch = pts[1:9], pt.bg = 1:9)
@@ -582,26 +633,56 @@ years <- sort(unique(gulf_lth_yr$year))
 ### alternatively, take the raw, find the cohorts, estimate growth per cohort
 # plot those results
 # find a weighted growth per year, the weighted mean of all the cohorts per year (weights are sample sizes)
-
+library(MASS)
 
 gulf_dat <- subset(dat_all, stock_id_2 == 'GULF')
+gulf_dat <- subset(dat_all, stock_id_2 == 'GULF') |>
+  subset(state!="MEX" & state!='MA' & state!='VA') |>
+  subset(gear_common=='HL') |>
+  subset(mode_2=="COM" | mode_2=='REC') |>
+  subset(final_age>1 & sex == 'M' & final_age<11)
 plot(gulf_dat$final_age, gulf_dat$fl_mm)
 plot(gulf_dat$year, gulf_dat$fl_mm)
-plot(gulf_dat$year, gulf_dat$final_age)
+image(kde2d(gulf_dat$year, gulf_dat$final_age, 
+            n = c(length(unique(gulf_dat$year)),length(unique(gulf_dat$final_age)))), asp = 2)
+
+####
+h1 <- hist(gulf_dat$year, breaks=length(unique(gulf_dat$year)), plot=F)
+h2 <- hist(gulf_dat$final_age, breaks=length(unique(gulf_dat$final_age)), plot=F)
+top <- max(h1$counts, h2$counts)
+k <- kde2d(gulf_dat$year, gulf_dat$final_age, n = c(length(unique(gulf_dat$year)),length(unique(gulf_dat$final_age))))
+# margins
+oldpar <- par()
+par(mar=c(3,3,1,1))
+layout(matrix(c(2,0,1,3),2,2,byrow=T),c(3,1), c(1,3))
+image(k) #plot the image
+par(mar=c(0,2,1,0))
+barplot(h1$counts, axes=F, ylim=c(0, top), space=0, col='red')
+par(mar=c(2,0,0.5,1))
+barplot(h2$counts, axes=F, xlim=c(0, top), space=0, col='red', horiz=T)
+####
 
 vb1 <- makeGrowthFun(type="von Bertalanffy",pname="Typical")
 vb1_form <- formula(fl_mm ~ Linf * (1 - exp(-K * (final_age - t0))))
 
+gulf_full <- nlsLM(fl_mm ~ vb2(final_age, Linf, K, L0), data=gulf_dat, 
+                   start=c(Linf=1300, K=.2, L0=10),
+                   control = nls.lm.control(maxiter = 1024, maxfev = 10000))
+gulf_full_out <- rbind(coef(gulf_full))
+gulf_full_out
+
 years <- sort(unique(gulf_dat$year))
 # output <- list()
-output <- matrix(NA, length(years), 3) |> as.data.frame()
+# output <- matrix(NA, length(years), 3) |> as.data.frame()
+output <- rep(NA, length(years))
 i=2005
-span <- 1:15
+span <- 2:11
 for(i in years){
   out <- mapply(function(x,y) subset(gulf_dat, year==x & final_age==y),
                 i:(i+length(span)-1),span, SIMPLIFY = F) #|> 
-    # unlist()
-  co_i <- vec_rbind(!!!out)
+  # unlist()
+  # co_i <- vec_rbind(!!!out)
+  co_i <- do.call(rbind, out)
   # plot(co_i$final_age, co_i$fl_mm)
   # mtext(i)
   # 
@@ -615,7 +696,7 @@ for(i in years){
   #                  algorithm = "port"), silent = TRUE)
   # 
   # output[[i-1985]] <- cbind(Est=coef(resv1),confint(resv1))
-
+  
   # resv1 <- try(nlsLM(vb1_form, data = co_i, start=c(Linf=1200, K=.1, t0=-2), jac = NULL,
   #       algorithm = "LM", control = nls.lm.control(maxiter = 1024, maxfev = 10000),
   #       lower = NULL, upper = NULL, trace = FALSE), silent = TRUE)
@@ -631,16 +712,31 @@ for(i in years){
   # } else {
   #   output[[i-1985]] <- cbind(Est=coef(resv1),confint(resv1))
   # }
-
-  resv1 <- try(nlsLM(fl_mm ~ vb1(final_age, Linf, K, t0), data=co_i, start=c(Linf=1200, K=.1, t0=-2),
-                 control = nls.lm.control(maxiter = 1024, maxfev = 10000)), silent = TRUE)
-  if (inherits(resv1, "try-error")) {
-    output[i-1985,] <- rep(NA, 3)
-    message(paste("Error in iteration", i, ": Skipping."))
-  } else {
-    output[i-1985,] <- rbind(coef(resv1))
-  }
   
+  # resv1 <- try(nlsLM(fl_mm ~ vb1(final_age, Linf, K, t0), data=co_i, start=c(Linf=1200, K=.1, t0=-2),
+  #                    control = nls.lm.control(maxiter = 1024, maxfev = 10000)), silent = TRUE)
+  # if (inherits(resv1, "try-error")) {
+  #   output[i-1985,] <- rep(NA, 3)
+  #   message(paste("Error in iteration", i, ": Skipping."))
+  # } else {
+  #   output[i-1985,] <- rbind(coef(resv1))
+  # }
+  
+  # resv1 <- try(nlsLM(fl_mm ~ vb2(final_age, Linf, K, L0), data=co_i, 
+  #                    start=c(Linf=1300, K=.2, L0=10),
+  #                    control = nls.lm.control(maxiter = 1024, maxfev = 10000)), silent = TRUE)
+  # if (inherits(resv1, "try-error")) {
+  #   output[i-1985,] <- rep(NA, 3)
+  #   message(paste("Error in iteration", i, ": Skipping."))
+  # } else {
+  #   output[i-1985,] <- rbind(coef(resv1))
+  # }
+  
+  resv1 <- nlsLM(fl_mm ~ gulf_full_out[1] - (gulf_full_out[1] - gulf_full_out[3]) * exp(-K * final_age),
+                 data=co_i, 
+                 start=c(K=.2),
+                 control = nls.lm.control(maxiter = 1024, maxfev = 10000))
+  output[i-1985] <- rbind(coef(resv1))
   
   # out <- matrix(out, 3, length(out)/3) |> t() |> as.data.frame()
   # n <- n + nrow(out)
@@ -648,13 +744,14 @@ for(i in years){
   # m <- n + 1
 }
 
-ks <- data.frame(year = years,
-                 k_ts = unlist(output)[seq(2,9*32,9)],
-                 lcl = unlist(output)[seq(5,9*32,9)],
-                 ucl = unlist(output)[seq(8,9*32,9)]) #|>
-# na.omit()
+plot(years, output, typ = 'o', pch = 16)
+points(smooth.spline(years, output, spar = .5), typ = 'l', col = 2, lwd = 2)
 
-plot(ks$year, log(ks$k_ts), typ = 'o', pch = 16)
+ks <- cbind(years, output) |>
+  setNames(c('year','Linf','K','L0'))
+
+plot(ks$year, log(ks$K+.0001), typ = 'o', pch = 16)
+plot(ks$year, ks$K, typ = 'o', pch = 16)
 
 plot(ks$year, ks$k_ts, typ = 'o', pch = 16,
      ylim = c(min(ks$lcl,na.rm=T), max(ks$ucl,na.rm=T)))
@@ -745,14 +842,14 @@ lw_res_all <- nls(lw_eq, data = dat_all, start = c(a = .5, b = 3))
 summary(lw_res_all)
 residuals(lw_res_all) |> hist()
 preds_all <- data.frame(x = dat_all$fl_mm[-lw_res_all$na.action],
-                    y = predict(lw_res_all,newdata = dat_all$fl_mm)) |>
+                        y = predict(lw_res_all,newdata = dat_all$fl_mm)) |>
   arrange(x)
 
 lw_res_laa <- nls(lw_eq, data = dat_laa, start = c(a = .5, b = 3))
 summary(lw_res_laa)
 residuals(lw_res_laa) |> hist()
 preds_laa <- data.frame(x = dat_laa$fl_mm[-lw_res_laa$na.action],
-                    y = predict(lw_res_laa,newdata = dat_laa$fl_mm)) |>
+                        y = predict(lw_res_laa,newdata = dat_laa$fl_mm)) |>
   arrange(x)
 # preds2 <- predictNLS(lw_res_all, interval = c("confidence"), alpha = 0.05, nsim = 10000)
 
@@ -782,8 +879,8 @@ for(i in yrs){
   plot(tmp$fl_mm,tmp$wh_kg)
   
   lw_res_t <- try(nls(lw_eq, data = tmp, start = c(a = .5, b = 3),
-                  control = nls.control(minFactor = 1/8192, maxiter = 10000, printEval = T),
-                  algorithm = "port"), silent = TRUE)
+                      control = nls.control(minFactor = 1/8192, maxiter = 10000, printEval = T),
+                      algorithm = "port"), silent = TRUE)
   
   # lm(log(wh_kg) ~ log(fl_mm), data = tmp)
   
