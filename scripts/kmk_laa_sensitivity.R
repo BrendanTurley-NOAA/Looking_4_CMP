@@ -573,6 +573,7 @@ gulf_st_yr <- aggregate(fl_mm ~ year + state, data = dat_laa, length) |>
   reshape(idvar = 'state', timevar = 'year', direction = 'wide')
 gulf_st_yr1 <- t(data.matrix(gulf_st_yr[,-1]))
 gulf_st_yr1[which(is.na(gulf_st_yr1))] <- 0
+colnames(gulf_st_yr1) <- gulf_st_yr$state
 gulf_st_pro1 <- (gulf_st_yr1)/rowSums(gulf_st_yr1)
 colnames(gulf_st_pro1) <- gulf_st_yr$state
 cols <- rev(turbo(ncol(gulf_st_pro1)))

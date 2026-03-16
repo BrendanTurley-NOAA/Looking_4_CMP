@@ -195,3 +195,72 @@ points(smooth.spline(yrs, per_yr, spar = .5), typ = 'l', col = 2, lwd = 2)
 points(years, cohort, typ = 'o', pch = 16, col = 4)
 points(smooth.spline(years, cohort, spar = .5), typ = 'l', col = 3, lwd = 2)
 
+
+
+library(strucchange) 
+
+find.bp.f= function(x, y, method="BIC"){ 
+  library(strucchange) 
+  if (method=="BIC"){ 
+    bp= breakpoints(y ~ x) 
+    bp.t= breakpoints(bp)$breakpoints 
+    bp.times= x[bp.t] 
+    line.prediction= fitted(bp) 
+  } 
+  if (method=="F.test"){ 
+    bp <- Fstats(y ~ x) 
+    bp.x= breakpoints(bp)$breakpoints 
+    bp.times= x[bp.t] 
+  } 
+  
+  plot(x,y,type="p",las=1,
+       xlab="Year",ylab="Number of Days Open")#,
+       # xaxt="n",las=1)
+  abline(v=bp.times,col="grey",lty=2,lwd=2) 
+  lines(x,fitted(bp),lwd=2) # need to make this for the F test too. 
+  if (is.na(bp.times[1])) message("no credible breakpoint by chosen method") else bp.times 
+} 
+
+
+find.bp.f(yrs, per_yr)
+find.bp.f(yrs, cohort)
+
+
+### NWF only
+
+gulf_dat <- subset(dat_all, stock_id_2 == 'GULF') |>
+  subset(state=='NWF' | state=='SWF' | state=='WF' | state=='SF') |>
+  # subset(state=='TX' | state=='LA' | state=='AL' | state=='MS') |>
+  subset(gear_common=='HL') |>
+  subset(mode_2=="COM" | mode_2=='REC') |>
+  subset(final_age>1 & sex == 'F' & final_age<10) |>
+  subset(year>1990)
+
+plot(gulf_dat$final_age, gulf_dat$fl_mm, col = alpha(1, .1), pch = 16)
+gulf_full <- nlsLM(fl_mm ~ vb2(final_age, Linf, K, L0), data=gulf_dat, 
+                   start=c(Linf=1200, K=.2, L0=100),
+                   control = nls.lm.control(maxiter = 1024, maxfev = 10000))
+gulf_full_out <- rbind(coef(gulf_full))
+gulf_full_out
+
+yrs <- sort(unique(gulf_dat$year))
+per_yr <- rep(NA, length(yrs))
+r <- rep(NA, length(yrs))
+for(i in yrs){
+  tmp <- subset(gulf_dat, year==i)
+  
+  resv1 <- nlsLM(fl_mm ~ gulf_full_out[1] - (gulf_full_out[1] - gulf_full_out[3]) * exp(-K * final_age),
+                 data=tmp,
+                 start=c(K=.2),
+                 control = nls.lm.control(maxiter = 1024, maxfev = 10000))
+  per_yr[i-1985] <- rbind(coef(resv1))
+}
+
+if(length(yrs)<length(per_yr)){
+  yrs <- 1986:2017
+}
+
+plot(yrs, per_yr, typ = 'o', pch = 16, col = 1)
+points(smooth.spline(yrs, per_yr, spar = .5), typ = 'l', col = 2, lwd = 2)
+
+summary(lm(per_yr ~ yrs))

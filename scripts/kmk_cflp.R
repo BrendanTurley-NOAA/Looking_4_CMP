@@ -268,6 +268,36 @@ abline(lm(cpue ~ LAND_YEAR,
 ### end
 
 
+#### pue per region overtime ####----------------------------------------------
+pue_yr_reg <- aggregate(pue ~ LAND_YEAR + REGION + COMMON_NAME,
+                         data = cflp_hl_1,
+                         median, na.rm = T)
+gc()
+
+with(subset(pue_yr_reg, COMMON_NAME=='MACKERELS, KING AND CERO'),
+     plot(LAND_YEAR, pue, typ = 'n', xlab = 'year', ylab = 'PUE (hook-hours)'))
+with(subset(pue_yr_reg, REGION=='GOM' & COMMON_NAME=='MACKERELS, KING AND CERO'),
+     points(LAND_YEAR, pue, typ = 'o', pch = 16))
+with(subset(pue_yr_reg, REGION=='SATL' & COMMON_NAME=='MACKERELS, KING AND CERO'),
+     points(LAND_YEAR, pue, typ = 'o', col = 2, pch = 16))
+abline(h = with(subset(pue_yr_reg, REGION=='GOM' & COMMON_NAME=='MACKERELS, KING AND CERO'),
+                median(pue)),
+       lty = 2)
+abline(h = with(subset(pue_yr_reg, REGION=='SATL' & COMMON_NAME=='MACKERELS, KING AND CERO'),
+                median(pue)),
+       col = 2, lty = 2)
+# abline(v = 2013, col = 4, lty = 2)
+grid()
+legend('topleft', c('GOM', 'SATL'), col = 1:2, pch = 16, bty = 'n')
+abline(lm(pue ~ LAND_YEAR, 
+          data = subset(pue_yr_reg, REGION=='GOM' &
+                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 1, lwd = 2)
+abline(lm(pue ~ LAND_YEAR, 
+          data = subset(pue_yr_reg, REGION=='SATL' &
+                          COMMON_NAME=='MACKERELS, KING AND CERO')), col = 2, lwd = 2)
+### end
+
+
 
 #### landings per region overtime ####----------------------------------------------
 landings_yr_reg <- aggregate(tot_kg ~ LAND_YEAR + REGION + COMMON_NAME,
@@ -376,6 +406,31 @@ for(i in 1:length(satl)){
 grid()
 legend('topleft',satl, lty=1, col=1:length(satl),bty = 'n', pch = 16, lwd = 2)
 ### end
+
+
+
+### CPUE per state over time
+pue_yr_st <- aggregate(pue ~ LAND_YEAR + ST_ABRV + REGION + COMMON_NAME,
+                        data = cflp_hl_1,
+                        median, na.rm = T)
+gc()
+
+#GOM
+gulf <- c('AL', 'FL', 'LA')
+with(subset(pue_yr_st, is.element(ST_ABRV, gulf) & 
+              REGION=='GOM' &
+              COMMON_NAME=='MACKERELS, KING AND CERO'),
+     plot(LAND_YEAR, pue, typ = 'n', xlab = 'year', ylab = 'PUE hook-hours)'))
+for(i in 1:length(gulf)){
+  with(subset(pue_yr_st, ST_ABRV==gulf[i] & 
+                REGION=='GOM' &
+                COMMON_NAME=='MACKERELS, KING AND CERO'),
+       points(LAND_YEAR, pue, typ = 'o', col = i, pch = 16, lwd = 2))
+}
+grid()
+legend('topleft',gulf, lty=1, col=1:length(gulf),bty = 'n', pch = 16, lwd = 2)
+
+
 
 
 ### has the length of trips changed or have there been less days fished?
