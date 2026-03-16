@@ -189,7 +189,8 @@ for(i in years){
 }
 
 
-plot(yrs, per_yr, typ = 'o', pch = 16, col = 1)
+plot(yrs, per_yr, typ = 'o', pch = 16, col = 1,
+     panel.first = grid())
 points(smooth.spline(yrs, per_yr, spar = .5), typ = 'l', col = 2, lwd = 2)
 
 points(years, cohort, typ = 'o', pch = 16, col = 4)
@@ -229,12 +230,13 @@ find.bp.f(yrs, cohort)
 ### NWF only
 
 gulf_dat <- subset(dat_all, stock_id_2 == 'GULF') |>
-  subset(state=='NWF' | state=='SWF' | state=='WF' | state=='SF') |>
-  # subset(state=='TX' | state=='LA' | state=='AL' | state=='MS') |>
+  # subset(state=='NWF') |>
+  # subset(state=='NWF' | state=='SWF' | state=='WF' | state=='SF') |>
+  subset(state=='TX' | state=='LA' | state=='AL' | state=='MS') |>
   subset(gear_common=='HL') |>
   subset(mode_2=="COM" | mode_2=='REC') |>
-  subset(final_age>1 & sex == 'F' & final_age<10) |>
-  subset(year>1990)
+  subset(final_age>1 & sex == 'F' & final_age<10) #|>
+  # subset(year>1990)
 
 plot(gulf_dat$final_age, gulf_dat$fl_mm, col = alpha(1, .1), pch = 16)
 gulf_full <- nlsLM(fl_mm ~ vb2(final_age, Linf, K, L0), data=gulf_dat, 
@@ -253,11 +255,11 @@ for(i in yrs){
                  data=tmp,
                  start=c(K=.2),
                  control = nls.lm.control(maxiter = 1024, maxfev = 10000))
-  per_yr[i-1985] <- rbind(coef(resv1))
+  per_yr[i-(yrs[1]-1)] <- rbind(coef(resv1))
 }
 
 if(length(yrs)<length(per_yr)){
-  yrs <- 1986:2017
+  yrs <- yrs[1]:yrs[length(yrs)]
 }
 
 plot(yrs, per_yr, typ = 'o', pch = 16, col = 1)
