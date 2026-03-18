@@ -24,9 +24,9 @@ sz_shp <- vect('CFLP_StatGrid_2013_v20140210.shp') |>
   st_as_sf()
 sz_shp$AREA_FISHED <- sz_shp$SZ_ID
 
-plot(kmk, border = 4, lwd = 2)
-plot(world, add = T, col = 'gray50')
-plot(st_geometry(sz_shp), add = T)
+# plot(kmk, border = 4, lwd = 2)
+# plot(world, add = T, col = 'gray50')
+# plot(st_geometry(sz_shp), add = T)
 
 
 natl_st <- c('ME', 'NH', 'MA', 'RI', 'CT', 'NY', 'NJ', 'DE', 'MD', 'VA')
@@ -225,6 +225,7 @@ cflp_hl_1 <- cflp_hl_0
 ### end
 
 ### load data
+setwd("C:/Users/brendan.turley/Documents/CMP/data/cflp")
 cflp_hl_1 <- readRDS('cflp_hl_1.rds')
 # image(2000:2023, 1:12,
 #       table(cflp_hl_1$LAND_YEAR, cflp_hl_1$LAND_MONTH))
@@ -270,8 +271,8 @@ abline(lm(cpue ~ LAND_YEAR,
 
 #### pue per region overtime ####----------------------------------------------
 pue_yr_reg <- aggregate(pue ~ LAND_YEAR + REGION + COMMON_NAME,
-                         data = cflp_hl_1,
-                         median, na.rm = T)
+                        data = cflp_hl_1,
+                        median, na.rm = T)
 gc()
 
 with(subset(pue_yr_reg, COMMON_NAME=='MACKERELS, KING AND CERO'),
@@ -301,8 +302,8 @@ abline(lm(pue ~ LAND_YEAR,
 
 #### landings per region overtime ####----------------------------------------------
 landings_yr_reg <- aggregate(tot_kg ~ LAND_YEAR + REGION + COMMON_NAME,
-                         data = cflp_hl_1,
-                         sum, na.rm = T)
+                             data = cflp_hl_1,
+                             sum, na.rm = T)
 gc()
 
 with(subset(landings_yr_reg, COMMON_NAME=='MACKERELS, KING AND CERO'),
@@ -332,8 +333,8 @@ abline(lm(tot_kg ~ LAND_YEAR,
 
 ### landings per state over time
 landings_yr_st <- aggregate(tot_kg ~ LAND_YEAR + ST_ABRV + REGION + COMMON_NAME,
-                        data = cflp_hl_1,
-                        sum, na.rm = T)
+                            data = cflp_hl_1,
+                            sum, na.rm = T)
 gc()
 
 #GOM
@@ -411,8 +412,8 @@ legend('topleft',satl, lty=1, col=1:length(satl),bty = 'n', pch = 16, lwd = 2)
 
 ### CPUE per state over time
 pue_yr_st <- aggregate(pue ~ LAND_YEAR + ST_ABRV + REGION + COMMON_NAME,
-                        data = cflp_hl_1,
-                        median, na.rm = T)
+                       data = cflp_hl_1,
+                       median, na.rm = T)
 gc()
 
 #GOM
@@ -554,7 +555,7 @@ abline(lm(days_away_corrected ~ LAND_YEAR,
 
 ### none of these (hours, effort, numgear) are useful
 hrs_yr <- aggregate(FISHED ~ LAND_YEAR + REGION + COMMON_NAME,
-                     data = cflp_hl_1,
+                    data = cflp_hl_1,
                     mean, na.rm = T) #median value not informative
 
 num_yr <- aggregate(NUMGEAR ~ LAND_YEAR + REGION + COMMON_NAME,
@@ -570,8 +571,8 @@ ves_yr <- aggregate(VESSEL_ID ~ LAND_YEAR + REGION + COMMON_NAME,
                     function(x) length(unique(x)))
 
 trps_yr <- aggregate(SCHEDULE_NUMBER ~ LAND_YEAR + REGION + COMMON_NAME,
-                    data = cflp_hl_1,
-                    function(x) length(unique(x)))
+                     data = cflp_hl_1,
+                     function(x) length(unique(x)))
 
 
 
@@ -721,7 +722,7 @@ image(2000:2023, 1:12,
 # image(2000:2023, 1:12,
 #       gla_hov_landings,
 #       las = 1, xlab = 'year', ylab = 'month')
-      
+
 ### test for weeks
 yr_week <- expand.grid(week = 1:53, LAND_YEAR = 2000:2023)
 
@@ -774,7 +775,7 @@ cpue_yr_area_region <- aggregate(cpue ~ LAND_YEAR + AREA_FISHED + COMMON_NAME + 
                                  median, na.rm = T)
 
 boxplot(cpue ~ REGION, data = subset(cflp_hl_1,
-                                          COMMON_NAME=='MACKERELS, KING AND CERO'),
+                                     COMMON_NAME=='MACKERELS, KING AND CERO'),
         pch = 16, lty = 1, varwidth = T, staplewex = 0, lwd = 2, outline = F)
 
 # boxplot(cpue ~ LAND_YEAR, data = subset(cflp_hl_1, REGION=='GOM' &
@@ -786,9 +787,9 @@ boxplot(cpue ~ REGION, data = subset(cflp_hl_1,
 #         pch = 16, lty = 1, varwidth = T, staplewex = 0, lwd = 2, outline = F)
 
 b <- boxplot(cpue ~ REGION + LAND_YEAR, data = subset(cflp_hl_1,
-                                                 COMMON_NAME=='MACKERELS, KING AND CERO'),
-        pch = 16, lty = 1, varwidth = F, staplewex = 0, lwd = 2, outline = F,
-        col = c('gray', 'purple'), xaxt = 'n')
+                                                      COMMON_NAME=='MACKERELS, KING AND CERO'),
+             pch = 16, lty = 1, varwidth = F, staplewex = 0, lwd = 2, outline = F,
+             col = c('gray', 'purple'), xaxt = 'n')
 axis(1, seq(1.5, 48.5, 2), 2000:2023, las = 2)
 legend('topleft',c('Gulf', 'SAtl'), fill = c('gray', 'purple'))
 
@@ -894,16 +895,16 @@ trp_yr_area <- aggregate(SCHEDULE_NUMBER ~ LAND_YEAR + AREA_FISHED + COMMON_NAME
                          function(x) length(unique(x)))
 
 yr_area <- aggregate(LAND_YEAR ~ AREA_FISHED + COMMON_NAME,
-                         data = cflp_hl_1,
-                         function(x) length(unique(x)))
+                     data = cflp_hl_1,
+                     function(x) length(unique(x)))
 gc()
 
 
 ### 1x1 grid in use exclusively starting 2013
 area_yr_shp <- merge(subset(yr_area,
-                        COMMON_NAME=='MACKERELS, KING AND CERO'),
-                 sz_shp,
-                 by = c('AREA_FISHED')) |>
+                            COMMON_NAME=='MACKERELS, KING AND CERO'),
+                     sz_shp,
+                     by = c('AREA_FISHED')) |>
   st_as_sf()
 
 plot(area_yr_shp['LAND_YEAR'])
@@ -1196,12 +1197,12 @@ out$cpue_slope_adj <- ifelse(out$cpue_p>.05, NA, out$cpue_slope)
 
 brks_pal1 <- brk_pal(out$cpue_slope)
 out$cpue_slope2 <- ifelse(out$cpue_slope > brks_pal1[[3]], brks_pal1[[3]],
-                    ifelse(out$cpue_slope < (-brks_pal1[[3]]), -brks_pal1[[3]],
-                           out$cpue_slope))
+                          ifelse(out$cpue_slope < (-brks_pal1[[3]]), -brks_pal1[[3]],
+                                 out$cpue_slope))
 brks_pal2 <- brk_pal(out$cpue_slope_adj)
 out$cpue_slope_adj2 <- ifelse(out$cpue_slope_adj > brks_pal2[[3]], brks_pal2[[3]],
-                     ifelse(out$cpue_slope_adj < (-brks_pal2[[3]]), -brks_pal2[[3]],
-                            out$cpue_slope_adj))
+                              ifelse(out$cpue_slope_adj < (-brks_pal2[[3]]), -brks_pal2[[3]],
+                                     out$cpue_slope_adj))
 
 ### tot kg lm
 out$tot_kg_slope_adj <- out$tot_kg_slope
@@ -1209,12 +1210,12 @@ out$tot_kg_slope_adj <- ifelse(out$tot_kg_p>.05, NA, out$tot_kg_slope)
 
 brks_pal3 <- brk_pal(out$tot_kg_slope)
 out$tot_kg_slope2 <- ifelse(out$tot_kg_slope > brks_pal3[[3]], brks_pal3[[3]],
-                          ifelse(out$tot_kg_slope < (-brks_pal3[[3]]), -brks_pal3[[3]],
-                                 out$tot_kg_slope))
+                            ifelse(out$tot_kg_slope < (-brks_pal3[[3]]), -brks_pal3[[3]],
+                                   out$tot_kg_slope))
 brks_pal4 <- brk_pal(out$tot_kg_slope_adj)
 out$tot_kg_slope_adj2 <- ifelse(out$tot_kg_slope_adj > brks_pal4[[3]], brks_pal4[[3]],
-                              ifelse(out$tot_kg_slope_adj < (-brks_pal4[[3]]), -brks_pal4[[3]],
-                                     out$tot_kg_slope_adj))
+                                ifelse(out$tot_kg_slope_adj < (-brks_pal4[[3]]), -brks_pal4[[3]],
+                                       out$tot_kg_slope_adj))
 
 ### effort lm
 out$effort_slope_adj <- out$effort_slope
@@ -1222,12 +1223,12 @@ out$effort_slope_adj <- ifelse(out$effort_p>.05, NA, out$effort_slope)
 
 brks_pal5 <- brk_pal(out$effort_slope)
 out$effort_slope2 <- ifelse(out$effort_slope > brks_pal5[[3]], brks_pal5[[3]],
-                          ifelse(out$effort_slope < (-brks_pal5[[3]]), -brks_pal5[[3]],
-                                 out$effort_slope))
+                            ifelse(out$effort_slope < (-brks_pal5[[3]]), -brks_pal5[[3]],
+                                   out$effort_slope))
 brks_pal6 <- brk_pal(out$effort_slope_adj)
 out$effort_slope_adj2 <- ifelse(out$effort_slope_adj > brks_pal6[[3]], brks_pal6[[3]],
-                              ifelse(out$effort_slope_adj < (-brks_pal6[[3]]), -brks_pal6[[3]],
-                                     out$effort_slope_adj))
+                                ifelse(out$effort_slope_adj < (-brks_pal6[[3]]), -brks_pal6[[3]],
+                                       out$effort_slope_adj))
 
 ### plots
 
@@ -1354,42 +1355,44 @@ dev.off()
 ### time series
 
 cpue_mth_st <- aggregate(cpue ~ LAND_YEAR + LAND_MONTH + ST_ABRV + REGION,
-                           data = subset(cflp_hl_1, 
-                                         COMMON_NAME=='MACKERELS, KING AND CERO'),
-                           median, na.rm = T)
+                         data = subset(cflp_hl_1, 
+                                       COMMON_NAME=='MACKERELS, KING AND CERO'),
+                         median, na.rm = T)
 
-par(mfrow=c(4,3), mar = c(3,3,1,4))
+par(mfrow=c(4,3), mar = c(3,4,2,1))
 for(i in 1:12){
   kmk_tmp <- subset(cpue_mth_st, LAND_MONTH==i &
                       REGION=='SATL')
   plot(kmk_tmp$LAND_YEAR, kmk_tmp$cpue,
-       typ = 'n', xlab = 'year', ylab = 'CPUE (kg / hook-hours)')
+       typ = 'n', xlab = 'year', ylab = 'CPUE (kg / hook-hours)',
+       panel.first = grid())
   for(j in 1:length(satl_st)){
     with(subset(kmk_tmp, ST_ABRV==satl_st[j]),
          points(LAND_YEAR, cpue, typ = 'o', col = j, pch = 16, lwd = 2))
   }
-  grid()
+  mtext(i, cex = .7)
   legend('topleft',satl_st, lty=1, col=1:length(satl_st),bty = 'n', pch = 16, lwd = 2)
 }
 
 
-par(mfrow=c(4,3), mar = c(3,3,1,4))
+par(mfrow=c(4,3), mar = c(3,4,2,1))
 for(i in 1:12){
   kmk_tmp <- subset(cpue_mth_st, LAND_MONTH==i &
                       REGION=='GOM')
   plot(kmk_tmp$LAND_YEAR, kmk_tmp$cpue,
-       typ = 'n', xlab = 'year', ylab = 'CPUE (kg / hook-hours)')
+       typ = 'n', xlab = 'year', ylab = 'CPUE (kg / hook-hours)',
+       panel.first = grid())
   for(j in 1:length(gom_st)){
     with(subset(kmk_tmp, ST_ABRV==gom_st[j]),
          points(LAND_YEAR, cpue, typ = 'o', col = j, pch = 16, lwd = 2))
   }
-  grid()
+  mtext(i, cex = .7)
   legend('topleft',gom_st, lty=1, col=1:length(gom_st),bty = 'n', pch = 16, lwd = 2)
 }
 
 boxplot(cpue ~ LAND_YEAR, data = cpue_mth_st)
 boxplot(cpue ~ LAND_MONTH, data = cpue_mth_st)
-boxplot(cpue ~ REGION + LAND_MONTH, data = cpue_mth_st, col = c('gray','purple'))
+# boxplot(cpue ~ REGION + LAND_MONTH, data = cpue_mth_st, col = c('gray','purple'))
 boxplot(cpue ~ REGION + LAND_MONTH, 
         data = subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO'),
         col = c('gray','purple'), outline = F)
@@ -1403,16 +1406,18 @@ quantile(subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO', select = 'cp
 cflp_hl_1$cnty_st <- paste(cflp_hl_1$CNTY_FIPS_NAME, cflp_hl_1$ST_ABRV)
 aggregate(tot_kg ~ cnty_st + REGION, 
           data = subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO'),
-          sum, na.rm = T) |> View()
+          sum, na.rm = T)
 aggregate(tot_kg ~ cnty_st + LAND_YEAR, 
           data = subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO'),
           sum, na.rm = T) |>
   group_by(cnty_st) |>
-  summarise(tot_kg = mean(tot_kg, na.rm = T)) |> View()
+  summarise(tot_kg = mean(tot_kg, na.rm = T))
+
+
 
 kmk_mth_m <- aggregate(tot_kg ~ cnty_st + LAND_MONTH, 
-          data = subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO'),
-          mean, na.rm = T) |>
+                       data = subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO'),
+                       mean, na.rm = T) |>
   group_by(cnty_st) |>
   summarise(tot_kg = mean(tot_kg, na.rm = T))
 
@@ -1423,12 +1428,41 @@ cnty <- c('MONROE FL', 'COLLIER FL', 'PINELLAS FL', 'BAY FL', 'OKALOOSA FL','MOB
 
 cnty_kmk <- subset(cflp_hl_1, cnty_st %in% cnty & COMMON_NAME=='MACKERELS, KING AND CERO')
 
+cols <- cmocean('phase')(13)[1:12]
+
 par(mfrow=c(4,4),mar=c(4,4,2,1))
 for(i in 1:length(cnty)){
-  subset(cnty_kmk, cnty_st==cnty[i]) |> 
+  tmp <- subset(cnty_kmk, cnty_st==cnty[i]) |> 
     group_by(LAND_MONTH) |>
-    summarise(tot_kg = sum(tot_kg, na.rm = T)/1e3) |> 
-    plot(,typ = 'h', lwd = 10, lend = 2, xlim = c(1,12))
+    # summarise(tot_kg = sum(tot_kg, na.rm = T)/1e3) |> 
+    summarise(tot_kg = mean(tot_kg, na.rm = T))
+  plot(tmp$LAND_MONTH, tmp$tot_kg,
+       typ = 'h', lwd = 10, lend = 2, xlim = c(1,12), ylim = c(0, max(tmp$tot_kg)),
+       col= cols[tmp$LAND_MONTH])
+  mtext(cnty[i])
+}
+
+par(mfrow=c(4,4),mar=c(4,4,2,1))
+for(i in 1:length(cnty)){
+  tmp <- subset(cnty_kmk, cnty_st==cnty[i]) |> 
+    group_by(LAND_MONTH) |>
+    # summarise(tot_kg = sum(tot_kg, na.rm = T)/1e3) |> 
+    summarise(cpue = mean(cpue, na.rm = T))
+  plot(tmp$LAND_MONTH, tmp$cpue,
+       typ = 'h', lwd = 10, lend = 2, xlim = c(1,12), ylim = c(0, max(tmp$cpue)),
+       col= cols[tmp$LAND_MONTH])
+  mtext(cnty[i])
+}
+
+par(mfrow=c(4,4),mar=c(4,4,2,1))
+for(i in 1:length(cnty)){
+  tmp <- subset(cnty_kmk, cnty_st==cnty[i]) |> 
+    group_by(LAND_MONTH) |>
+    # summarise(tot_kg = sum(tot_kg, na.rm = T)/1e3) |> 
+    summarise(pue = mean(pue, na.rm = T))
+  plot(tmp$LAND_MONTH, tmp$pue,
+       typ = 'h', lwd = 10, lend = 2, xlim = c(1,12), ylim = c(0, max(tmp$pue)),
+       col= cols[tmp$LAND_MONTH])
   mtext(cnty[i])
 }
 
@@ -1436,30 +1470,14 @@ par(mfrow=c(4,6),mar=c(4,4,2,1),oma=c(0,0,3,0))
 for(i in 1:length(cnty)){
   for(j in 2000:2023){
     if(nrow(subset(cnty_kmk, cnty_st==cnty[i] & LAND_YEAR==j))!=0){
-    subset(cnty_kmk, cnty_st==cnty[i] & LAND_YEAR==j) |> 
-      group_by(LAND_MONTH) |>
-      summarise(tot_kg = sum(tot_kg, na.rm = T)/1e3) |> 
-      plot(typ = 'h', lwd = 7, lend = 2, xlim = c(1,12))
-    mtext(j)
-    abline(h = subset(kmk_mth_m, cnty_st==cnty[i], select = tot_kg), lty = 5)
-  } else {
-    plot(1,1,xlim = c(1,12), typ = 'n')
-    mtext(j)
-  }
-  }
-  mtext(cnty[i], outer = T)
-}
-
-
-par(mfrow=c(4,6),mar=c(4,4,2,1),oma=c(0,0,3,0))
-for(i in 1:length(cnty)){
-  for(j in 2000:2023){
-    if(nrow(subset(cnty_kmk, cnty_st==cnty[i] & LAND_YEAR==j))!=0){
-      subset(cnty_kmk, cnty_st==cnty[i] & LAND_YEAR==j) |> 
+      tmp <- subset(cnty_kmk, cnty_st==cnty[i] & LAND_YEAR==j) |> 
         group_by(LAND_MONTH) |>
-        summarise(cpue = mean(cpue, na.rm = T)) |> 
-        plot(typ = 'h', lwd = 7, lend = 2, xlim = c(1,12))
+        summarise(tot_kg = mean(tot_kg, na.rm = T))
+      plot(tmp$LAND_MONTH, tmp$tot_kg,
+           typ = 'h', lwd = 7, lend = 2, xlim = c(1,12), ylim = c(0, max(tmp$tot_kg)),
+           col= cols[tmp$LAND_MONTH])
       mtext(j)
+      abline(h = subset(kmk_mth_m, cnty_st==cnty[i], select = tot_kg), lty = 5)
     } else {
       plot(1,1,xlim = c(1,12), typ = 'n')
       mtext(j)
@@ -1468,6 +1486,82 @@ for(i in 1:length(cnty)){
   mtext(cnty[i], outer = T)
 }
 
+
+par(mfrow=c(4,6),mar=c(4,4,2,1),oma=c(0,0,3,0))
+for(i in 1:length(cnty)){
+  for(j in 2000:2023){
+    if(nrow(subset(cnty_kmk, cnty_st==cnty[i] & LAND_YEAR==j))!=0){
+      tmp <- subset(cnty_kmk, cnty_st==cnty[i] & LAND_YEAR==j) |> 
+        group_by(LAND_MONTH) |>
+        summarise(cpue = mean(cpue, na.rm = T))
+      plot(tmp$LAND_MONTH, tmp$cpue,
+           typ = 'h', lwd = 7, lend = 2, xlim = c(1,12), ylim = c(0, max(tmp$cpue)),
+           col= cols[tmp$LAND_MONTH])
+      mtext(j)
+      # abline(h = subset(kmk_mth_m, cnty_st==cnty[i], select = tot_kg), lty = 5)
+    } else {
+      plot(1,1,xlim = c(1,12), typ = 'n')
+      mtext(j)
+    }
+  }
+  mtext(cnty[i], outer = T)
+}
+
+par(mfrow=c(4,6),mar=c(4,4,2,1),oma=c(0,0,3,0))
+for(i in 1:length(cnty)){
+  for(j in 2000:2023){
+    if(nrow(subset(cnty_kmk, cnty_st==cnty[i] & LAND_YEAR==j))!=0){
+      tmp <- subset(cnty_kmk, cnty_st==cnty[i] & LAND_YEAR==j) |> 
+        group_by(LAND_MONTH) |>
+        summarise(pue = mean(pue, na.rm = T))
+      plot(tmp$LAND_MONTH, tmp$pue,
+           typ = 'h', lwd = 7, lend = 2, xlim = c(1,12), ylim = c(0, max(tmp$pue)),
+           col= cols[tmp$LAND_MONTH])
+      mtext(j)
+      # abline(h = subset(kmk_mth_m, cnty_st==cnty[i], select = tot_kg), lty = 5)
+    } else {
+      plot(1,1,xlim = c(1,12), typ = 'n')
+      mtext(j)
+    }
+  }
+  mtext(cnty[i], outer = T)
+}
+
+
+par(mfrow=c(4,4),mar=c(4,4,2,1))
+for(i in 1:length(cnty)){
+  tmp <- subset(cnty_kmk, cnty_st==cnty[i]) |> 
+    group_by(LAND_YEAR) |>
+    # summarise(tot_kg = sum(tot_kg, na.rm = T)/1e3) |> 
+    summarise(tot_kg = mean(tot_kg, na.rm = T))
+  plot(tmp$LAND_YEAR, tmp$tot_kg,
+       lwd = 3, lend = 2, typ = 'l')
+  mtext(cnty[i])
+}
+
+
+par(mfrow=c(4,4),mar=c(4,4,2,1))
+for(i in 1:length(cnty)){
+  tmp <- subset(cnty_kmk, cnty_st==cnty[i]) |> 
+    group_by(LAND_YEAR) |>
+    # summarise(tot_kg = sum(tot_kg, na.rm = T)/1e3) |> 
+    summarise(cpue = mean(cpue, na.rm = T))
+  plot(tmp$LAND_YEAR, tmp$cpue,
+       lwd = 3, lend = 2, typ = 'l')
+  mtext(cnty[i])
+}
+
+
+par(mfrow=c(4,4),mar=c(4,4,2,1))
+for(i in 1:length(cnty)){
+  tmp <- subset(cnty_kmk, cnty_st==cnty[i]) |> 
+    group_by(LAND_YEAR) |>
+    # summarise(tot_kg = sum(tot_kg, na.rm = T)/1e3) |> 
+    summarise(pue = mean(pue, na.rm = T))
+  plot(tmp$LAND_YEAR, tmp$pue,
+       lwd = 3, lend = 2, typ = 'l')
+  mtext(cnty[i])
+}
 
 
 #### trip level kmk proportion ####---------------------------------------------
@@ -1481,11 +1575,11 @@ tot_land <- aggregate(tot_kg ~ LAND_YEAR + LAND_MONTH +
                       sum, na.rm = T)
 
 tot_kmk_land <- aggregate(tot_kg ~ LAND_YEAR + LAND_MONTH +
-                        REGION + ST_ABRV + AREA_FISHED +
-                        VESSEL_ID, #+ SCHEDULE_NUMBER,
-                      data = subset(cflp_hl_1, 
-                                    COMMON_NAME=='MACKERELS, KING AND CERO'),
-                      sum, na.rm = T)
+                            REGION + ST_ABRV + AREA_FISHED +
+                            VESSEL_ID, #+ SCHEDULE_NUMBER,
+                          data = subset(cflp_hl_1, 
+                                        COMMON_NAME=='MACKERELS, KING AND CERO'),
+                          sum, na.rm = T)
 names(tot_kmk_land)[length(names(tot_kmk_land))] <- 'tot_kmk_kg'
 tot_landm <- merge(tot_land, tot_kmk_land)
 tot_landm$kmk_pro <- tot_landm$tot_kmk_kg / tot_landm$tot_kg
@@ -1495,4 +1589,63 @@ boxplot(kmk_pro ~ REGION + LAND_YEAR, data = tot_landm, col = c('gray','purple')
 
 
 spp_tab <- table(cflp_hl_1$COMMON_NAME, cflp_hl_1$REGION) |> as.data.frame() |> 
-  reshape(idvar='Var1',timevar='Var2',direction='wide')
+  reshape(idvar='Var1',timevar='Var2',direction='wide') |> View()
+
+
+gulf_kmk_trips <- subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO' & REGION=='GOM')
+
+tot_land <- aggregate(tot_kg ~ LAND_YEAR + LAND_MONTH +
+                        REGION + ST_ABRV + AREA_FISHED +
+                        # VESSEL_ID, #+ SCHEDULE_NUMBER,
+                        SCHEDULE_NUMBER,
+                      data = subset(cflp_hl_1, SCHEDULE_NUMBER %in% gulf_kmk_trips$SCHEDULE_NUMBER),
+                      sum, na.rm = T)
+
+tot_kmk_land <- aggregate(tot_kg ~ LAND_YEAR + LAND_MONTH +
+                            REGION + ST_ABRV + AREA_FISHED +
+                            # VESSEL_ID, #+ SCHEDULE_NUMBER,
+                            SCHEDULE_NUMBER,
+                          data = subset(cflp_hl_1, 
+                                        SCHEDULE_NUMBER %in% gulf_kmk_trips$SCHEDULE_NUMBER &
+                                          COMMON_NAME=='MACKERELS, KING AND CERO'),
+                          sum, na.rm = T)
+names(tot_kmk_land)[length(names(tot_kmk_land))] <- 'tot_kmk_kg'
+tot_landm <- merge(tot_land, tot_kmk_land)
+tot_landm$kmk_pro <- tot_landm$tot_kmk_kg / tot_landm$tot_kg
+hist(tot_landm$kmk_pro)
+boxplot(kmk_pro ~ LAND_MONTH, data = tot_landm)
+boxplot(kmk_pro ~ REGION + LAND_YEAR, data = tot_landm, col = c('gray'))
+
+
+kmk_trips <- subset(tot_landm, kmk_pro > .75, select = 'SCHEDULE_NUMBER')
+
+spp_tab <- subset(cflp_hl_1, 
+                  SCHEDULE_NUMBER %in% kmk_trips$SCHEDULE_NUMBER) |>
+  count(COMMON_NAME, REGION)
+
+kmk_trips_catch <- subset(cflp_hl_1, 
+                          SCHEDULE_NUMBER %in% kmk_trips$SCHEDULE_NUMBER)
+
+spp <- aggregate(tot_kg ~ COMMON_NAME, data = kmk_trips_catch, sum, na.rm = T) |>
+  arrange(desc(tot_kg))
+top_spp <- spp$COMMON_NAME[1:10]
+
+spp_yr <- aggregate(tot_kg ~ COMMON_NAME + LAND_YEAR + ST_ABRV, data = subset(kmk_trips_catch,
+                                                                    COMMON_NAME %in% top_spp),
+                    # function (x) length(x))
+                    mean, na.rm = T)
+spp <- unique(spp_yr$COMMON_NAME)
+
+cols <- cmocean('phase')(11)[1:10]
+
+plot(spp_yr$LAND_YEAR, spp_yr$tot_kg)
+# plot(2000:2023, rep(1,24), typ = 'l', ylim = c(0,4))
+for(i in 1:10){
+  tmp <- subset(spp_yr, COMMON_NAME==spp[i])
+  points(tmp$LAND_YEAR, tmp$tot_kg, col = cols[i], typ = 'l', lwd = 3)
+  # points(tmp$LAND_YEAR, tmp$tot_kg/mean(tmp$tot_kg), col = i, typ = 'l')
+}
+legend('topleft', spp, col = cols, pch = 16, cex = .7, lty = 1, lwd = 3)
+
+
+
