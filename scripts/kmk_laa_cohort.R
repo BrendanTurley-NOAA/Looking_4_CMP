@@ -231,12 +231,13 @@ find.bp.f(yrs, cohort)
 
 gulf_dat <- subset(dat_all, stock_id_2 == 'GULF') |>
   # subset(state=='NWF') |>
+  subset(state=='NWF' | state=='WF') |>
   # subset(state=='NWF' | state=='SWF' | state=='WF' | state=='SF') |>
-  subset(state=='TX' | state=='LA' | state=='AL' | state=='MS') |>
+  # subset(state=='TX' | state=='LA' | state=='AL' | state=='MS') |>
   subset(gear_common=='HL') |>
   subset(mode_2=="COM" | mode_2=='REC') |>
-  subset(final_age>1 & sex == 'F' & final_age<10) #|>
-  # subset(year>1990)
+  subset(final_age>1 & sex == 'F' & final_age<10) |>
+  subset(year>1990)
 
 plot(gulf_dat$final_age, gulf_dat$fl_mm, col = alpha(1, .1), pch = 16)
 gulf_full <- nlsLM(fl_mm ~ vb2(final_age, Linf, K, L0), data=gulf_dat, 

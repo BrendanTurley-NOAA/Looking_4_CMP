@@ -379,6 +379,7 @@ gc()
 
 #GOM
 gulf <- c('AL', 'FL', 'LA', 'MS', 'TX')
+gulf <- c('AL', 'FL', 'LA', 'TX')
 with(subset(cpue_yr_st, is.element(ST_ABRV, gulf) & 
               REGION=='GOM' &
               COMMON_NAME=='MACKERELS, KING AND CERO'),
@@ -421,7 +422,7 @@ gulf <- c('AL', 'FL', 'LA')
 with(subset(pue_yr_st, is.element(ST_ABRV, gulf) & 
               REGION=='GOM' &
               COMMON_NAME=='MACKERELS, KING AND CERO'),
-     plot(LAND_YEAR, pue, typ = 'n', xlab = 'year', ylab = 'PUE hook-hours)'))
+     plot(LAND_YEAR, pue, typ = 'n', xlab = 'year', ylab = 'PUE (hook-hours)'))
 for(i in 1:length(gulf)){
   with(subset(pue_yr_st, ST_ABRV==gulf[i] & 
                 REGION=='GOM' &
@@ -1131,9 +1132,10 @@ pal5 <- cmocean('rain')(length(brks5)-1)
 
 #### spatial linear regression ####---------------------------------------------
 
-brk_pal <- function(dat , pal = 'balance', n = 40){
+brk_pal <- function(dat , pal = 'balance', n = 40, q = .9){
   # bnd <- min(ceiling(abs(range(dat,na.rm=T))))
-  bnd <- quantile(abs(dat),.75,na.rm=T)
+  # bnd <- quantile(abs(dat),q,na.rm=T)
+  bnd <- mean(abs(range(dat,na.rm=T)))
   brk <- seq(-bnd, bnd, by = bnd/(n/2))
   # pal <- cmocean('balance')(length(brk)-1)
   pal <- cmocean('balance')(length(brk)+3)
@@ -1141,12 +1143,48 @@ brk_pal <- function(dat , pal = 'balance', n = 40){
   return(list(brk,pal,bnd))
 }
 
-# kmk_tmp <- aggregate(cpue ~ LAND_YEAR + AREA_FISHED + COMMON_NAME + REGION,
-#                      data = cflp_hl_1,
-#                      median, na.rm = T) |>
-#   subset(COMMON_NAME=='MACKERELS, KING AND CERO') |>
-#   merge(sz_shp,
-#         by = c('AREA_FISHED'))
+kmk_tmp <- aggregate(cbind(cpue, tot_kg, pue) ~ LAND_YEAR + AREA_FISHED + COMMON_NAME,
+                     data = subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO' & REGION=='GOM' &
+                                     LAND_YEAR > 2012),
+                     mean, na.rm = T) |>
+  merge(sz_shp,
+        by = c('AREA_FISHED'))
+kmk_tmp <- kmk_tmp[order(kmk_tmp$LAND_YEAR),]
+
+afs <- unique(kmk_tmp$AREA_FISHED)
+lm_cpue <- lm_landings  <- lm_effort <- matrix(NA,length(afs),3) |> as.data.frame()
+n <- 1
+for(i in afs){
+  tmp <- subset(kmk_tmp, AREA_FISHED==i)
+  if(length(unique(tmp$LAND_YEAR)) > 3){
+    res1 <- lm(cpue ~ LAND_YEAR, data = tmp) |>
+      summary()
+    lm_cpue[n,] <- c(coef(res1)[2,c(1,4)],res1$adj.r.squared)
+    
+    res2 <- lm(tot_kg ~ LAND_YEAR, data = tmp) |>
+      summary()
+    lm_landings[n,] <- c(coef(res2)[2,c(1,4)],res2$adj.r.squared)
+    
+    res3 <- lm(pue ~ LAND_YEAR, data = tmp) |>
+      summary()
+    lm_effort[n,] <- c(coef(res3)[2,c(1,4)],res3$adj.r.squared)
+  }
+  # if(nrow(tmp) > 3){
+  #   res <- cor.test(tmp$cpue, tmp$LAND_YEAR,
+  #                   alternative = "two.sided",
+  #                   method = 'spearman')
+  #   out[n,] <- c(res$estimate, res$p.value)
+  # }
+  n <- n + 1
+}
+
+
+library(lattice)
+xyplot(cpue ~ LAND_YEAR | AREA_FISHED, data = kmk_tmp, pch = 16, type = c("p", "r"),)
+xyplot(tot_kg ~ LAND_YEAR | AREA_FISHED, data = kmk_tmp, pch = 16, type = c("p", "r"),)
+xyplot(pue ~ LAND_YEAR | AREA_FISHED, data = kmk_tmp, pch = 16, type = c("p", "r"),)
+
+
 kmk_tmp <- subset(cflp_hl_1,
                   COMMON_NAME=='MACKERELS, KING AND CERO') |>
   merge(sz_shp,
@@ -1181,6 +1219,8 @@ for(i in afs){
   n <- n + 1
 }
 
+
+
 out <- cbind(lm_cpue, lm_landings, lm_effort, afs) |> 
   setNames(c('cpue_slope','cpue_p','cpue_r2',
              'tot_kg_slope','tot_kg_p','tot_kg_r2',
@@ -1191,9 +1231,10 @@ out <- cbind(lm_cpue, lm_landings, lm_effort, afs) |>
   st_as_sf() |>
   st_make_valid()
 
+p_th <- .05
 ### cpue lm
 out$cpue_slope_adj <- out$cpue_slope
-out$cpue_slope_adj <- ifelse(out$cpue_p>.05, NA, out$cpue_slope)
+out$cpue_slope_adj <- ifelse(out$cpue_p>p_th, NA, out$cpue_slope)
 
 brks_pal1 <- brk_pal(out$cpue_slope)
 out$cpue_slope2 <- ifelse(out$cpue_slope > brks_pal1[[3]], brks_pal1[[3]],
@@ -1206,7 +1247,7 @@ out$cpue_slope_adj2 <- ifelse(out$cpue_slope_adj > brks_pal2[[3]], brks_pal2[[3]
 
 ### tot kg lm
 out$tot_kg_slope_adj <- out$tot_kg_slope
-out$tot_kg_slope_adj <- ifelse(out$tot_kg_p>.05, NA, out$tot_kg_slope)
+out$tot_kg_slope_adj <- ifelse(out$tot_kg_p>p_th, NA, out$tot_kg_slope)
 
 brks_pal3 <- brk_pal(out$tot_kg_slope)
 out$tot_kg_slope2 <- ifelse(out$tot_kg_slope > brks_pal3[[3]], brks_pal3[[3]],
@@ -1219,7 +1260,7 @@ out$tot_kg_slope_adj2 <- ifelse(out$tot_kg_slope_adj > brks_pal4[[3]], brks_pal4
 
 ### effort lm
 out$effort_slope_adj <- out$effort_slope
-out$effort_slope_adj <- ifelse(out$effort_p>.05, NA, out$effort_slope)
+out$effort_slope_adj <- ifelse(out$effort_p>p_th, NA, out$effort_slope)
 
 brks_pal5 <- brk_pal(out$effort_slope)
 out$effort_slope2 <- ifelse(out$effort_slope > brks_pal5[[3]], brks_pal5[[3]],
@@ -1232,28 +1273,41 @@ out$effort_slope_adj2 <- ifelse(out$effort_slope_adj > brks_pal6[[3]], brks_pal6
 
 ### plots
 
-length(which(out$cpue_p<=.05))/nrow(out)
-length(which(out$tot_kg_p<=.05))/nrow(out)
-length(which(out$effort_p<=.05))/nrow(out)
+length(which(out$cpue_p<=p_th))/nrow(out)
+length(which(out$tot_kg_p<=p_th))/nrow(out)
+length(which(out$effort_p<=p_th))/nrow(out)
 
 
 plot(out['cpue_slope2'], breaks = brks_pal1[[1]], pal = brks_pal1[[2]], reset = F, key.pos = 4)
-text(st_coordinates(st_centroid(out)), labels = round(out$cpue_slope,2), cex = .7)
+text(st_coordinates(st_centroid(out)), labels = round(out$cpue_slope2,2), cex = .7)
 
 plot(out['cpue_slope_adj2'],  breaks = brks_pal2[[1]], pal = brks_pal2[[2]], reset = F, key.pos = 4)
-text(st_coordinates(st_centroid(out)), labels = round(out$cpue_slope_adj,2), cex = .7)
+text(st_coordinates(st_centroid(out)), labels = round(out$cpue_slope_adj2,2), cex = .7)
 
 plot(out['tot_kg_slope2'], breaks = brks_pal3[[1]], pal = brks_pal3[[2]], reset = F, key.pos = 4)
-text(st_coordinates(st_centroid(out)), labels = round(out$tot_kg_slope,2), cex = .7)
+text(st_coordinates(st_centroid(out)), labels = round(out$tot_kg_slope2,2), cex = .7)
 
 plot(out['tot_kg_slope_adj2'],  breaks = brks_pal4[[1]], pal = brks_pal4[[2]], reset = F, key.pos = 4)
-text(st_coordinates(st_centroid(out)), labels = round(out$tot_kg_slope_adj,2), cex = .7)
+text(st_coordinates(st_centroid(out)), labels = round(out$tot_kg_slope_adj2,2), cex = .7)
 
 plot(out['effort_slope2'], breaks = brks_pal5[[1]], pal = brks_pal5[[2]], reset = F, key.pos = 4)
-text(st_coordinates(st_centroid(out)), labels = round(out$effort_slope,2), cex = .7)
+text(st_coordinates(st_centroid(out)), labels = round(out$effort_slope2,2), cex = .7)
 
 plot(out['effort_slope_adj2'],  breaks = brks_pal6[[1]], pal = brks_pal6[[2]], reset = F, key.pos = 4)
-text(st_coordinates(st_centroid(out)), labels = round(out$effort_slope_adj,2), cex = .7)
+text(st_coordinates(st_centroid(out)), labels = round(out$effort_slope_adj2,2), cex = .7, font = 2)
+
+
+plot(out['cpue_slope2'], breaks = brks_pal1[[1]], pal = brks_pal1[[2]], reset = F, key.pos = 4)
+text(st_coordinates(st_centroid(out)), labels = round(out$cpue_slope_adj2,2), cex = .7, font = 2)
+
+plot(out['tot_kg_slope2'], breaks = brks_pal3[[1]], pal = brks_pal3[[2]], reset = F, key.pos = 4)
+text(st_coordinates(st_centroid(out)), labels = round(out$tot_kg_slope_adj2,2), cex = .7, font = 2)
+
+plot(out['effort_slope2'], breaks = brks_pal5[[1]], pal = brks_pal5[[2]], reset = F, key.pos = 4)
+text(st_coordinates(st_centroid(out)), labels = round(out$effort_slope_adj2,2), cex = .7, font = 2)
+
+plot(out['AREA_FISHED'], reset = F)
+text(st_coordinates(st_centroid(out)), labels = out$AREA_FISHED, cex = .7, font = 2)
 
 plot(out['cpue_r2'])
 plot(out['tot_kg_r2'])
