@@ -1703,3 +1703,336 @@ legend('topleft', spp, col = cols, pch = 16, cex = .7, lty = 1, lwd = 3)
 
 
 
+
+
+# map of max landings per season/month ------------------------------------
+
+
+### cflp KMK landings per month per area
+
+tot_mth_area <- aggregate(tot_kg ~ LAND_MONTH + AREA_FISHED,
+                          data = subset(cflp_hl_1,
+                                        REGION=='GOM' &
+                                          COMMON_NAME=='MACKERELS, KING AND CERO' &
+                                          LAND_YEAR>2012),
+                          median, na.rm = T)
+
+
+### per grid cell which month had the greated landings
+area_mth <- tot_mth_area |> 
+  group_by(AREA_FISHED) |>
+  slice_max(tot_kg)
+
+kmk_areas <-  merge(area_mth,
+                    sz_shp,
+                    by = c('AREA_FISHED')) %>%
+  st_as_sf
+
+sort(unique(kmk_areas$LAND_MONTH))
+
+plot(kmk_areas['LAND_MONTH'], 
+     pal = cmocean('balance')(12),
+     breaks = seq(.5,12.5,1))
+
+
+
+
+
+tot_mth_area <- aggregate(cpue ~ LAND_MONTH + AREA_FISHED,
+                          data = subset(cflp_hl_1,
+                                        REGION=='GOM' &
+                                          COMMON_NAME=='MACKERELS, KING AND CERO' &
+                                          LAND_YEAR>2012),
+                          median, na.rm = T)
+
+
+### per grid cell which month had the greated landings
+area_mth <- tot_mth_area |> 
+  group_by(AREA_FISHED) |>
+  slice_max(cpue)
+
+kmk_areas <-  merge(area_mth,
+                    sz_shp,
+                    by = c('AREA_FISHED')) %>%
+  st_as_sf
+
+sort(unique(kmk_areas$LAND_MONTH))
+
+plot(kmk_areas['LAND_MONTH'], 
+     pal = cmocean('balance')(12),
+     breaks = seq(.5,12.5,1))
+
+
+
+### seasons
+tot_mth_area <- aggregate(tot_kg ~ LAND_MONTH + AREA_FISHED,
+                          data = subset(cflp_hl_1,
+                                        REGION=='GOM' &
+                                          COMMON_NAME=='MACKERELS, KING AND CERO' &
+                                          LAND_YEAR>2012),
+                          median, na.rm = T)
+
+
+tot_mth_area <- tot_mth_area |>
+  mutate(
+    season = case_when(
+      LAND_MONTH < 3 ~ 'win',
+      LAND_MONTH > 2 & LAND_MONTH < 6 ~ 'spr',
+      LAND_MONTH > 5 & LAND_MONTH < 9 ~ 'sum',
+      LAND_MONTH > 8 & LAND_MONTH < 12 ~ 'aut',
+      LAND_MONTH == 12 ~ 'win'))
+
+
+area_mth <- tot_mth_area |> 
+  group_by(AREA_FISHED) |>
+  slice_max(tot_kg)
+
+kmk_areas <-  merge(area_mth,
+                    sz_shp,
+                    by = c('AREA_FISHED')) %>%
+  st_as_sf
+
+sort(unique(kmk_areas$LAND_MONTH))
+
+plot(kmk_areas['season'])
+
+
+
+tot_mth_area <- aggregate(cpue ~ LAND_MONTH + AREA_FISHED,
+                          data = subset(cflp_hl_1,
+                                        REGION=='GOM' &
+                                          COMMON_NAME=='MACKERELS, KING AND CERO' &
+                                          LAND_YEAR>2012),
+                          median, na.rm = T)
+
+
+tot_mth_area <- tot_mth_area |>
+  mutate(
+    season = case_when(
+      LAND_MONTH < 3 ~ 'win',
+      LAND_MONTH > 2 & LAND_MONTH < 6 ~ 'spr',
+      LAND_MONTH > 5 & LAND_MONTH < 9 ~ 'sum',
+      LAND_MONTH > 8 & LAND_MONTH < 12 ~ 'aut',
+      LAND_MONTH == 12 ~ 'win'))
+
+
+area_mth <- tot_mth_area |> 
+  group_by(AREA_FISHED) |>
+  slice_max(cpue)
+
+kmk_areas <-  merge(area_mth,
+                    sz_shp,
+                    by = c('AREA_FISHED')) %>%
+  st_as_sf
+
+sort(unique(kmk_areas$LAND_MONTH))
+
+plot(kmk_areas['season'])
+
+
+gulf_kmk_trips <- subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO' & REGION=='GOM')
+tot_land <- aggregate(tot_kg ~ LAND_YEAR + LAND_MONTH +
+                        REGION + ST_ABRV + AREA_FISHED +
+                        # VESSEL_ID, #+ SCHEDULE_NUMBER,
+                        SCHEDULE_NUMBER,
+                      data = subset(cflp_hl_1, SCHEDULE_NUMBER %in% gulf_kmk_trips$SCHEDULE_NUMBER),
+                      sum, na.rm = T)
+tot_kmk_land <- aggregate(tot_kg ~ LAND_YEAR + LAND_MONTH +
+                            REGION + ST_ABRV + AREA_FISHED +
+                            # VESSEL_ID, #+ SCHEDULE_NUMBER,
+                            SCHEDULE_NUMBER,
+                          data = subset(cflp_hl_1, 
+                                        SCHEDULE_NUMBER %in% gulf_kmk_trips$SCHEDULE_NUMBER &
+                                          COMMON_NAME=='MACKERELS, KING AND CERO'),
+                          sum, na.rm = T)
+names(tot_kmk_land)[length(names(tot_kmk_land))] <- 'tot_kmk_kg'
+tot_landm <- merge(tot_land, tot_kmk_land)
+tot_landm$kmk_pro <- tot_landm$tot_kmk_kg / tot_landm$tot_kg
+hist(tot_landm$kmk_pro)
+boxplot(kmk_pro ~ LAND_MONTH, data = tot_landm)
+boxplot(kmk_pro ~ REGION + LAND_YEAR, data = tot_landm, col = c('gray'))
+
+kmk_trips <- subset(tot_landm, kmk_pro > .9, select = 'SCHEDULE_NUMBER')
+
+spp_tab <- subset(cflp_hl_1, 
+                  SCHEDULE_NUMBER %in% kmk_trips$SCHEDULE_NUMBER) |>
+  count(COMMON_NAME, REGION)
+
+kmk_trips_catch <- subset(cflp_hl_1, 
+                          SCHEDULE_NUMBER %in% kmk_trips$SCHEDULE_NUMBER)
+
+
+### cflp KMK landings per month per area
+
+tot_mth_area <- aggregate(tot_kg ~ LAND_MONTH + AREA_FISHED,
+                          data = subset(kmk_trips_catch,
+                                        REGION=='GOM' &
+                                          COMMON_NAME=='MACKERELS, KING AND CERO' &
+                                          LAND_YEAR>2012),
+                          median, na.rm = T)
+
+
+### per grid cell which month had the greated landings
+area_mth <- tot_mth_area |> 
+  group_by(AREA_FISHED) |>
+  slice_max(tot_kg)
+
+kmk_areas <-  merge(area_mth,
+                    sz_shp,
+                    by = c('AREA_FISHED')) %>%
+  st_as_sf
+
+sort(unique(kmk_areas$LAND_MONTH))
+
+plot(kmk_areas['LAND_MONTH'], 
+     pal = cmocean('balance')(12),
+     breaks = seq(.5,12.5,1))
+
+
+
+
+
+tot_mth_area <- aggregate(cpue ~ LAND_MONTH + AREA_FISHED,
+                          data = subset(kmk_trips_catch,
+                                        REGION=='GOM' &
+                                          COMMON_NAME=='MACKERELS, KING AND CERO' &
+                                          LAND_YEAR>2012),
+                          median, na.rm = T)
+
+
+### per grid cell which month had the greated landings
+area_mth <- tot_mth_area |> 
+  group_by(AREA_FISHED) |>
+  slice_max(cpue)
+
+kmk_areas <-  merge(area_mth,
+                    sz_shp,
+                    by = c('AREA_FISHED')) %>%
+  st_as_sf
+
+sort(unique(kmk_areas$LAND_MONTH))
+
+plot(kmk_areas['LAND_MONTH'], 
+     pal = cmocean('balance')(12),
+     breaks = seq(.5,12.5,1))
+
+
+
+### seasons
+tot_mth_area <- aggregate(tot_kg ~ LAND_MONTH + AREA_FISHED,
+                          data = subset(kmk_trips_catch,
+                                        REGION=='GOM' &
+                                          COMMON_NAME=='MACKERELS, KING AND CERO' &
+                                          LAND_YEAR>2012),
+                          median, na.rm = T)
+
+
+tot_mth_area <- tot_mth_area |>
+  mutate(
+    season = case_when(
+      LAND_MONTH < 3 ~ 'win',
+      LAND_MONTH > 2 & LAND_MONTH < 6 ~ 'spr',
+      LAND_MONTH > 5 & LAND_MONTH < 9 ~ 'sum',
+      LAND_MONTH > 8 & LAND_MONTH < 12 ~ 'aut',
+      LAND_MONTH == 12 ~ 'win'))
+
+
+area_mth <- tot_mth_area |> 
+  group_by(AREA_FISHED) |>
+  slice_max(tot_kg)
+
+kmk_areas <-  merge(area_mth,
+                    sz_shp,
+                    by = c('AREA_FISHED')) %>%
+  st_as_sf
+
+sort(unique(kmk_areas$LAND_MONTH))
+
+plot(kmk_areas['season'], reset = F)
+text(st_coordinates(st_centroid(kmk_areas)), labels = round(kmk_areas$tot_kg,2), cex = .7, font = 2)
+
+
+
+tot_mth_area <- aggregate(cpue ~ LAND_MONTH + AREA_FISHED,
+                          data = subset(kmk_trips_catch,
+                                        REGION=='GOM' &
+                                          COMMON_NAME=='MACKERELS, KING AND CERO' &
+                                          LAND_YEAR>2012),
+                          median, na.rm = T)
+
+
+tot_mth_area <- tot_mth_area |>
+  mutate(
+    season = case_when(
+      LAND_MONTH < 3 ~ 'win',
+      LAND_MONTH > 2 & LAND_MONTH < 6 ~ 'spr',
+      LAND_MONTH > 5 & LAND_MONTH < 9 ~ 'sum',
+      LAND_MONTH > 8 & LAND_MONTH < 12 ~ 'aut',
+      LAND_MONTH == 12 ~ 'win'))
+
+
+area_mth <- tot_mth_area |> 
+  group_by(AREA_FISHED) |>
+  slice_max(cpue)
+
+kmk_areas <-  merge(area_mth,
+                    sz_shp,
+                    by = c('AREA_FISHED')) %>%
+  st_as_sf
+
+sort(unique(kmk_areas$LAND_MONTH))
+
+plot(kmk_areas['season'], reset = F)
+text(st_coordinates(st_centroid(kmk_areas)), labels = round(kmk_areas$cpue,2), cex = .7, font = 2)
+
+
+
+### weighted coords
+tot_mth_area <- aggregate(cpue ~ LAND_MONTH + AREA_FISHED,
+                          data = subset(kmk_trips_catch,
+                                        REGION=='GOM' &
+                                          COMMON_NAME=='MACKERELS, KING AND CERO' &
+                                          LAND_YEAR>2012),
+                          median, na.rm = T)
+
+
+tot_mth_area <- tot_mth_area |>
+  mutate(
+    season = case_when(
+      LAND_MONTH < 3 ~ 'win',
+      LAND_MONTH > 2 & LAND_MONTH < 6 ~ 'spr',
+      LAND_MONTH > 5 & LAND_MONTH < 9 ~ 'sum',
+      LAND_MONTH > 8 & LAND_MONTH < 12 ~ 'aut',
+      LAND_MONTH == 12 ~ 'win'))
+
+
+area_mth <- tot_mth_area |>
+  group_by(LAND_MONTH) |>
+  mutate(pro_kg = cpue/sum(cpue))
+
+
+kmk_areas <-  merge(area_mth,
+                    sz_shp,
+                    by = c('AREA_FISHED')) %>%
+  st_as_sf
+kmk_areas$centroids <- st_coordinates(st_centroid(kmk_areas))
+
+test <- kmk_areas |>
+  group_by(LAND_MONTH)|>
+  mutate(x_cen = sum(centroids[,'X']*pro_kg),
+         y_cen = sum(centroids[,'Y']*pro_kg))
+
+
+area_mth <- tot_mth_area |> 
+  group_by(AREA_FISHED) |>
+  slice_max(cpue)
+
+kmk_areas <-  merge(area_mth,
+                    sz_shp,
+                    by = c('AREA_FISHED')) %>%
+  st_as_sf
+
+plot(kmk_areas['season'], reset = F)
+points(test$x_cen,test$y_cen)
+text(test$x_cen,test$y_cen, labels = test$LAND_MONTH, cex = 1, font = 2)
+
