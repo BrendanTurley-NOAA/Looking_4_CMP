@@ -2042,6 +2042,7 @@ text(test$x_cen,test$y_cen, labels = test$LAND_MONTH, cex = 1, font = 2)
 
 
 ### scatterpie
+# https://stackoverflow.com/questions/75538362/plot-piecharts-onto-map-using-tmap-in-r
 # dataframe needs to have coordinates and number per season
 
 tot_sea_area <- aggregate(cpue ~ season + AREA_FISHED,
@@ -2051,7 +2052,6 @@ tot_sea_area <- aggregate(cpue ~ season + AREA_FISHED,
                                           LAND_YEAR>2012),
                           median, na.rm = T)
 
-?reshape
 dat_sea <- reshape(tot_sea_area,timevar = 'season', idvar = 'AREA_FISHED', direction = 'wide')
 dat_sea[is.na(dat_sea)] <- 0
 
@@ -2059,9 +2059,9 @@ dat_sea_sf <-  merge(dat_sea,
                     sz_shp,
                     by = c('AREA_FISHED')) |>
   st_as_sf()
-dat_sea_sf$centroids <- st_coordinates(st_centroid(dat_sea_sf))
-dat_sea_sf$lon <- dat_sea_sf$centroids[,'X']
-dat_sea_sf$lat <- dat_sea_sf$centroids[,'Y']
+# dat_sea_sf$centroids <- st_coordinates(st_centroid(dat_sea_sf))
+dat_sea_sf$lon <- st_coordinates(st_centroid(dat_sea_sf))[,'X']
+dat_sea_sf$lat <- st_coordinates(st_centroid(dat_sea_sf))[,'Y']
 
 library(ggplot2)
 library(scatterpie) # for drawing pie charts
@@ -2073,4 +2073,6 @@ test <- dat_sea_sf |>
 ggplot(data = dat_sea_sf) + geom_sf()  + coord_sf() +
   geom_scatterpie(aes(x=lon, y=lat),
                   data=test,
-                  cols=c('cpue.win', 'cpue.spr', 'cpue.sum', 'cpue.aut'))
+                  cols=c('cpue.win', 'cpue.spr', 'cpue.sum', 'cpue.aut'),
+                  color = 1) +
+  scale_fill_manual(values = c('purple','blue','green','orange'))
