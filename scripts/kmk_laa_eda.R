@@ -245,7 +245,8 @@ sd_38u <- subset(dat2, STOCK_ID != "MIXING")
 
 ?mapply
 
-sd_38_wtm <- sd_38 |> group_by(year, stock_id_2 ,sex, final_age) |>
+sd_38_wtm <- sd_38 |> select(-source) |>
+  group_by(year, stock_id_2 ,sex, final_age) |>
   summarise(mean = mean(fl_mm), n = n()) |>
   group_by(year, stock_id_2, sex) |>
   summarise(w.mean = weighted.mean(mean, n))

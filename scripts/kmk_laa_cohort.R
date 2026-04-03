@@ -267,3 +267,19 @@ plot(yrs, per_yr, typ = 'o', pch = 16, col = 1)
 points(smooth.spline(yrs, per_yr, spar = .5), typ = 'l', col = 2, lwd = 2)
 
 summary(lm(per_yr ~ yrs))
+
+find.bp.f(yrs, per_yr)
+
+
+#### confidence int
+
+library(nlraa)
+library(car)
+
+
+gulf_full <- nlsLM(fl_mm ~ vb2(final_age, Linf, K, L0), data=gulf_dat, 
+                   start=c(Linf=1300, K=.2, L0=10),
+                   control = nls.lm.control(maxiter = 1024, maxfev = 10000))
+gulf_full
+fit.nls.bt <- boot_nls(gulf_full, R = 1000) # R=100 for demonstration purposes
+confint(fit.nls.bt, type = "perc") # Uses percentile method by default

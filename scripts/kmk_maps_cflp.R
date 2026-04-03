@@ -61,7 +61,7 @@ dev.off()
 
 
 
-setwd("C:/Users/brendan.turley/Downloads")
+setwd("C:/Users/brendan.turley/Documents/CMP/data")
 kmk_am <- rast('Scomberomorus_cavalla.nc')
 kmk_nc <- nc_open('Scomberomorus_cavalla.nc')
 

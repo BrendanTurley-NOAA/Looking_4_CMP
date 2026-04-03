@@ -1482,6 +1482,55 @@ cnty <- c('MONROE FL', 'COLLIER FL', 'PINELLAS FL', 'BAY FL', 'OKALOOSA FL','MOB
 
 cnty_kmk <- subset(cflp_hl_1, cnty_st %in% cnty & COMMON_NAME=='MACKERELS, KING AND CERO')
 
+par(mfrow=c(4,4),mar=c(4,4,2,1))
+for(i in 1:length(cnty)){
+  tmp <- subset(cnty_kmk, cnty_st==cnty[i]) |> 
+    group_by(LAND_YEAR) |>
+    # summarise(tot_kg = sum(tot_kg, na.rm = T)/1e3) |> 
+    summarise(tot_kg = mean(tot_kg, na.rm = T))
+  plot(tmp$LAND_YEAR, tmp$tot_kg,
+       lwd = 3, lend = 2, typ = 'l')
+  mtext(cnty[i])
+}
+
+
+par(mfrow=c(4,4),mar=c(4,4,2,1))
+for(i in 1:length(cnty)){
+  tmp <- subset(cnty_kmk, cnty_st==cnty[i]) |> 
+    group_by(LAND_YEAR) |>
+    # summarise(tot_kg = sum(tot_kg, na.rm = T)/1e3) |> 
+    summarise(cpue = mean(cpue, na.rm = T))
+  plot(tmp$LAND_YEAR, tmp$cpue,
+       lwd = 3, lend = 2, typ = 'l')
+  mtext(cnty[i])
+}
+
+
+par(mfrow=c(4,4),mar=c(4,4,2,1))
+for(i in 1:length(cnty)){
+  tmp <- subset(cnty_kmk, cnty_st==cnty[i]) |> 
+    group_by(LAND_YEAR) |>
+    # summarise(tot_kg = sum(tot_kg, na.rm = T)/1e3) |> 
+    summarise(pue = mean(pue, na.rm = T))
+  plot(tmp$LAND_YEAR, tmp$pue,
+       lwd = 3, lend = 2, typ = 'l')
+  mtext(cnty[i])
+}
+
+par(mfrow=c(4,3),mar=c(4,4,2,1))
+for(i in 1:length(cnty)){
+  for(j in 1:12){
+    tmp <- subset(cnty_kmk, cnty_st==cnty[i] & LAND_MONTH==j) |> 
+      group_by(LAND_YEAR) |>
+      # summarise(tot_kg = sum(tot_kg, na.rm = T)/1e3) |> 
+      summarise(pue = mean(pue, na.rm = T))
+    plot(tmp$LAND_YEAR, tmp$pue,
+         lwd = 3, lend = 2, typ = 'l')
+    mtext(cnty[i])
+  }
+}
+
+
 cols <- cmocean('phase')(13)[1:12]
 
 par(mfrow=c(4,4),mar=c(4,4,2,1))
