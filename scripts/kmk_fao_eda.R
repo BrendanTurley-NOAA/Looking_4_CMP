@@ -23,8 +23,29 @@ names(kmk_wco)
 table(kmk_wco$Name_En, kmk_wco$AREA.CODE)
 table(kmk_wco$Name_En, kmk_wco$PRODUCTION_SOURCE_DET.CODE)
 
+setwd("~/R_projects/Looking_4_CMP/figs")
+png('FAO_US_MX.png', width = 8, height = 6, units = 'in', res = 300)
+with(subset(kmk_wco, Name_En=='Mexico' & AREA.CODE==31),
+     plot(PERIOD, VALUE, typ = 'o', pch = 16,
+          panel.first = grid(),
+          las = 1, xlab = 'Year', ylab = 'FAO Commercial landings (MT)',
+          main = 'King Mackerel'))
 with(subset(kmk_wco, Name_En=='United States of America' & AREA.CODE==31),
-     plot(PERIOD, VALUE, typ = 'l'))
+     points(PERIOD, VALUE, typ = 'o', pch = 16, col = 2))
+legend('topleft',c('US (Gulf & SE)','Mexico'),pch=16,col=c(2,1), bty = 'n')
+dev.off()
+
+us <- subset(kmk_wco, Name_En=='United States of America' & AREA.CODE==31,
+       select = c(PERIOD, VALUE))
+mx <- subset(kmk_wco, Name_En=='Mexico' & AREA.CODE==31,
+       select = c(PERIOD, VALUE))
+usmx_merge <- merge(us, mx, by = 'PERIOD')
+
+plot(usmx_merge$PERIOD ,usmx_merge$VALUE.y / usmx_merge$VALUE.x, typ = 'o',
+     panel.first = abline(h = 1, lty = 5))
+
+kmk_usmx <- subset(kmk_wco, Name_En=='Mexico' & AREA.CODE==31 |
+                     Name_En=='United States of America' & AREA.CODE==31)
 
 kmk_countries <- sort(unique(kmk_wco$Name_En))
 
