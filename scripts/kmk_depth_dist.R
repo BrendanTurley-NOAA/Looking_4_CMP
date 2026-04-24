@@ -4,6 +4,8 @@ gc()
 library(cmocean)
 library(terra)
 library(sf)
+library(readxl)
+library(marmap)
 
 setwd("C:/Users/brendan.turley/Documents/data/shapefiles/GSHHS_shp/i")
 world <- vect('GSHHS_i_L1.shp')
@@ -96,6 +98,26 @@ dat <- vect('Catch Records.shp')
 
 setwd("C:/Users/brendan.turley/Documents/CMP/data/kmk_occurance")
 kk <- read.csv('Occurrence.csv')
+kk$depth[which(kk$depth==0)] <- NA
 hist(kk$depth)
+quantile(kk$depth, seq(0,1,.1),na.rm=T)
 quantile(kk$depth, c(.05,.95),na.rm=T)
+quantile(kk$depth, c(.025,.975),na.rm=T)
 summary(kk$depth)
+
+
+setwd("~/data/Fishery_observer_data/ReefExtraction for Coastal Pelagics (i.e. Trollin20240924044830")
+trolling <- read_xlsx('Trolling Reef Observer Program Request (09_24_24).xlsx')
+kmk_tr <- subset(trolling, COMMON_NAME=='MACKEREL, KING' & LAT_BEGIN_SET < 40)
+lons <- range(kmk_tr$LON_BEGIN_SET)
+lats <- range(kmk_tr$LAT_BEGIN_SET)
+obs <- data.frame(lon = kmk_tr$LON_BEGIN_SET,
+                  lat = kmk_tr$LAT_BEGIN_SET)
+
+plot(kmk_tr$LON_BEGIN_SET, kmk_tr$LAT_BEGIN_SET, asp = 1)
+
+bathy_data <- getNOAA.bathy(lon1 = lons[1], lon2 = lons[2], 
+                            lat1 = lats[1], lat2 = lats[2], 
+                            resolution = 1)
+
+matched_data <- get.depth(bathy_data, x = obs$lon, y = obs$lat, locator = F)

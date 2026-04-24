@@ -1734,15 +1734,15 @@ spp <- aggregate(tot_kg ~ COMMON_NAME, data = kmk_trips_catch, sum, na.rm = T) |
   arrange(desc(tot_kg))
 top_spp <- spp$COMMON_NAME[1:10]
 
-spp_yr <- aggregate(tot_kg ~ COMMON_NAME + LAND_YEAR + ST_ABRV, data = subset(kmk_trips_catch,
+spp_yr <- aggregate(tot_kg ~ COMMON_NAME + LAND_YEAR, data = subset(kmk_trips_catch,
                                                                     COMMON_NAME %in% top_spp),
                     # function (x) length(x))
-                    mean, na.rm = T)
+                    sum, na.rm = T)
 spp <- unique(spp_yr$COMMON_NAME)
 
 cols <- cmocean('phase')(11)[1:10]
 
-plot(spp_yr$LAND_YEAR, spp_yr$tot_kg)
+plot(spp_yr$LAND_YEAR, spp_yr$tot_kg, typ = 'n')
 # plot(2000:2023, rep(1,24), typ = 'l', ylim = c(0,4))
 for(i in 1:10){
   tmp <- subset(spp_yr, COMMON_NAME==spp[i])
@@ -2100,7 +2100,7 @@ tot_sea_area <- aggregate(cpue ~ season + AREA_FISHED,
                                         REGION=='GOM' &
                                           COMMON_NAME=='MACKERELS, KING AND CERO' &
                                           LAND_YEAR>2012),
-                          median, na.rm = T)
+                          mean, na.rm = T)
 
 dat_sea <- reshape(tot_sea_area,timevar = 'season', idvar = 'AREA_FISHED', direction = 'wide')
 dat_sea[is.na(dat_sea)] <- 0
@@ -2124,5 +2124,40 @@ ggplot(data = dat_sea_sf) + geom_sf()  + coord_sf() +
   geom_scatterpie(aes(x=lon, y=lat),
                   data=test,
                   cols=c('cpue.win', 'cpue.spr', 'cpue.sum', 'cpue.aut'),
+                  color = 1) +
+  scale_fill_manual(values = c('purple','blue','green','orange'))
+
+
+
+tot_sea_area <- aggregate(tot_kg ~ season + AREA_FISHED,
+                          data = subset(kmk_trips_catch,
+                                        REGION=='GOM' &
+                                          COMMON_NAME=='MACKERELS, KING AND CERO' &
+                                          LAND_YEAR>2012),
+                          # mean, na.rm = T)
+                          sum, na.rm = T)
+
+dat_sea <- reshape(tot_sea_area,timevar = 'season', idvar = 'AREA_FISHED', direction = 'wide')
+dat_sea[is.na(dat_sea)] <- 0
+
+dat_sea_sf <-  merge(dat_sea,
+                     sz_shp,
+                     by = c('AREA_FISHED')) |>
+  st_as_sf()
+# dat_sea_sf$centroids <- st_coordinates(st_centroid(dat_sea_sf))
+dat_sea_sf$lon <- st_coordinates(st_centroid(dat_sea_sf))[,'X']
+dat_sea_sf$lat <- st_coordinates(st_centroid(dat_sea_sf))[,'Y']
+
+library(ggplot2)
+library(scatterpie) # for drawing pie charts
+
+test <- dat_sea_sf |> 
+  select(lon, lat, tot_kg.win, tot_kg.spr, tot_kg.sum, tot_kg.aut) |>
+  st_drop_geometry()
+
+ggplot(data = dat_sea_sf) + geom_sf()  + coord_sf() +
+  geom_scatterpie(aes(x=lon, y=lat),
+                  data=test,
+                  cols=c('tot_kg.win', 'tot_kg.spr', 'tot_kg.sum', 'tot_kg.aut'),
                   color = 1) +
   scale_fill_manual(values = c('purple','blue','green','orange'))
