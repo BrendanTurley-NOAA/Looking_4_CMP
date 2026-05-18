@@ -60,42 +60,57 @@ with(subset(kmk_tag, month(ReDate)>8 & month(ReDate)<12),
      plot(ReLonX,ReLatY, bg = 3, pch = 24, asp = 1,
           xlim=c(-100,-70), ylim=c(17,40)))
 
+tal_thres <-  90 #75
+kmk$ReFleetCode <- factor(kmk$ReFleetCode, levels = c('UNCL.FLEETS','MEX','USA'))
+kmk$RcFleetCode <- factor(kmk$RcFleetCode, levels = c('UNCL.FLEETS','MEX','USA'))
 
 par(mfrow=c(2,2))
 plot(kmk$ReLonX, kmk$ReLatY, typ='n', asp = 1,
      xlim=c(-100,-70), ylim=c(17,40))
-with(subset(kmk, tal<75 & month(RcDate)==12 | month(RcDate)<3),
+with(subset(kmk, tal<tal_thres & month(RcDate)==12 | month(RcDate)<3),
      arrows(ReLonX, ReLatY,
             RcLonX, RcLatY, length = .1))
-with(subset(kmk, tal<75 & month(RcDate)==12 | month(RcDate)<3),
-     points(RcLonX,RcLatY, bg = 3, pch = 24))
+with(subset(kmk, tal<tal_thres & month(RcDate)==12 | month(RcDate)<3),
+     points(RcLonX,RcLatY, bg = RcFleetCode, pch = as.numeric(ReFleetCode)+23))
 
 plot(kmk$ReLonX, kmk$ReLatY, typ='n', asp = 1,
      xlim=c(-100,-70), ylim=c(17,40))
-with(subset(kmk, tal<75 & month(RcDate)>2 & month(RcDate)<6),
+with(subset(kmk, tal<tal_thres & month(RcDate)>2 & month(RcDate)<6),
      arrows(ReLonX, ReLatY,
             RcLonX, RcLatY, length = .1))
-with(subset(kmk, tal<75 & month(RcDate)>2 & month(RcDate)<6),
-     points(RcLonX,RcLatY, bg = 3, pch = 24))
+with(subset(kmk, tal<tal_thres & month(RcDate)>2 & month(RcDate)<6),
+     points(RcLonX,RcLatY, bg = RcFleetCode, pch = as.numeric(ReFleetCode)+23))
 
 plot(kmk$ReLonX, kmk$ReLatY, typ='n', asp = 1,
      xlim=c(-100,-70), ylim=c(17,40))
-with(subset(kmk, tal<75 & month(RcDate)>5 & month(RcDate)<9),
+with(subset(kmk, tal<tal_thres & month(RcDate)>5 & month(RcDate)<9),
      arrows(ReLonX, ReLatY,
             RcLonX, RcLatY, length = .1))
-with(subset(kmk, tal<75 & month(RcDate)>5 & month(RcDate)<9),
-     points(RcLonX,RcLatY, bg = 3, pch = 24))
+with(subset(kmk, tal<tal_thres & month(RcDate)>5 & month(RcDate)<9),
+     points(RcLonX,RcLatY, bg = RcFleetCode, pch = as.numeric(ReFleetCode)+23))
 
 plot(kmk$ReLonX, kmk$ReLatY, typ='n', asp = 1,
      xlim=c(-100,-70), ylim=c(17,40))
-with(subset(kmk, tal<75 & month(RcDate)>8 & month(RcDate)<12),
+with(subset(kmk, tal<tal_thres & month(RcDate)>8 & month(RcDate)<12),
      arrows(ReLonX, ReLatY,
             RcLonX, RcLatY, length = .1))
-with(subset(kmk, tal<75 & month(RcDate)>8 & month(RcDate)<12),
-     points(RcLonX,RcLatY, bg = 3, pch = 24))
+with(subset(kmk, tal<tal_thres & month(RcDate)>8 & month(RcDate)<12),
+     points(RcLonX,RcLatY, bg = RcFleetCode, pch = as.numeric(ReFleetCode)+23))
 
 
 boxplot(month(kmk$ReDate)~month(kmk$RcDate))
 
 
+### how many are released in MX and recovered in USA &
+### how many are released in USA and recovered in MX
+table(kmk$ReFleetCode, kmk$RcFleetCode) |> addmargins()
+table(kmk$ReFleetCode, kmk$ReDate |> month())
+table(kmk$RcFleetCode, kmk$RcDate |> month())
+
+with(subset(kmk, tal<tal_thres),
+     table(ReFleetCode, RcFleetCode) |> addmargins())
+with(subset(kmk, tal<tal_thres),
+     table(ReFleetCode, ReDate |> month()))
+with(subset(kmk, tal<tal_thres),
+     table(RcFleetCode, RcDate |> month()))
 

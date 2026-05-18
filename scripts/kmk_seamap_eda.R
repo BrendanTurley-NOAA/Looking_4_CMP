@@ -1,4 +1,8 @@
 
+library(dplyr)
+library(lubridate)
+
+
 ### KMK sdm using seamap trawl data
 ### Scomberomorus cavalla
 
@@ -28,3 +32,5 @@ plot(sta_kmk$DECSLON,sta_kmk$DECSLAT)
 
 ### pull location (lon/lat), date-time, cruise, vessel, kmk # and weight, depth, sst, chl, sbt, wind sp and dir, wave ht and dir, air temp, air press
 # join cruise, vessel, station, env, catch
+
+sta_cr <- left_join(sta, cruise, by = 'CRUISEID')
