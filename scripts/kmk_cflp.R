@@ -1460,13 +1460,18 @@ quantile(subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO', select = 'cp
 
 cflp_hl_1$cnty_st <- paste(cflp_hl_1$CNTY_FIPS_NAME, cflp_hl_1$ST_ABRV)
 aggregate(tot_kg ~ cnty_st + REGION, 
-          data = subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO'),
-          sum, na.rm = T)
+          data = subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO' &
+                          REGION=='GOM'),
+          sum, na.rm = T) |>
+  arrange(desc(tot_kg))
 aggregate(tot_kg ~ cnty_st + LAND_YEAR, 
-          data = subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO'),
+          data = subset(cflp_hl_1, COMMON_NAME=='MACKERELS, KING AND CERO' &
+                          REGION=='GOM'),
           sum, na.rm = T) |>
   group_by(cnty_st) |>
-  summarise(tot_kg = mean(tot_kg, na.rm = T))
+  summarise(tot_kg = mean(tot_kg, na.rm = T)) |>
+  arrange(desc(tot_kg)) |>
+  print(n=61)
 
 
 
