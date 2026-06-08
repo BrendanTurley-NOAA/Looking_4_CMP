@@ -61,6 +61,7 @@ with(subset(kmk_tag, month(ReDate)>8 & month(ReDate)<12),
           xlim=c(-100,-70), ylim=c(17,40)))
 
 tal_thres <-  90 #75
+subset(kmk, tal<tal_thres) |> nrow()
 kmk$ReFleetCode <- factor(kmk$ReFleetCode, levels = c('UNCL.FLEETS','MEX','USA'))
 kmk$RcFleetCode <- factor(kmk$RcFleetCode, levels = c('UNCL.FLEETS','MEX','USA'))
 
