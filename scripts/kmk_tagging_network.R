@@ -125,8 +125,9 @@ nodes <- data.frame(grid = 1:length(nodes_id), xy.grid = nodes_id) |>
 # points(nodes$lon, nodes$lat, pch = 21, col = 2, cex = 2.5)
 # text(nodes$lon, nodes$lat, nodes$grid)
 land <- c(32,57,78,85,92)
-not_land <- nodes$grid[-which(nodes$grid %in% land)]
-nodes <- nodes[not_land, ]
+land_nodes <- nodes[is.element(nodes$grid, land),]
+not_land_grids <- nodes$grid[!is.element(nodes$grid, land)]
+nodes <- nodes[!is.element(nodes$grid, land), ]
 
 ### define vertices
 vertices <- nodes[,2:4]
@@ -134,6 +135,7 @@ vertices <- nodes[,2:4]
 
 ### subset data for TAL
 recap_sub <- subset(recaptures, DAYS_AT_LARGE<90)
+# recap_sub <- subset(recaptures, DAYS_AT_LARGE>365)
 
 rel_sub <- subset(release, id %in% recap_sub$id)
 cap_sub <- subset(capture, id %in% recap_sub$id)
@@ -164,23 +166,34 @@ edges_wt <- table(edges) |> as.data.frame()
 edges_wt <- subset(edges_wt, Freq>0) |> 
   setNames(c(c('from','to', 'weight')))
 # edges_wt <- subset(edges_wt, weight>1)
-edges_wt <- edges_wt[which(edges_wt$to %in% not_land), ]
+edges_wt <- edges_wt[which(edges_wt$to %in% not_land_grids), ]
 edges_wt <- edges_wt[which(edges_wt$from %in% not_land), ]
 
 
 ### define weights as inverse distance
 from_tmp <- merge(rel_sub, nodes_sub, by = 'xy.grid', all.x = T) |> dplyr::select(id, grid, lon.y, lat.y)
 to_tmp <- merge(cap_sub, nodes_sub, by = 'xy.grid', all.x = T) |> dplyr::select(id, grid, lon.y, lat.y)
-edges <- merge(from_tmp, to_tmp, by = 'id') |> dplyr::select('grid.x','grid.y') |>
-  setNames(c('from','to'))
-# distance_km <- distm(dat[,c('LONGITUDE_1','LATITUDE_1')], 
-#                          dat[,c('LONGITUDE_2','LATITUDE_2')],
-#                          fun = distHaversine) |> diag()/1000
+edges <- merge(from_tmp, to_tmp, by = 'id') |> 
+  dplyr::select('grid.x', 'lon.y.x', 'lat.y.x', 'grid.y', 'lon.y.y', 'lat.y.y') |>
+  setNames(c('from','from.x','from.y','to','to.x','to.y'))
+distance_km <- distm(edges[,c('from.x','from.y')],
+                     edges[,c('to.x','to.y')],
+                         fun = distHaversine) |> diag()/1000
+distance_km[which(distance_km==0)] <- 1
+inv_wt <- data.frame(inv_dis = 1/distance_km,
+                     ft_i = paste0(edges$from,edges$to))
+inv_distance <- data
 
+edges_wt <- edges |> dplyr::select(from, to) |> table() |> as.data.frame() |>
+  subset(Freq>0)
+edges_wt$ft_i <- paste0(edges_wt$from,edges_wt$to)
+edges_wt2 <- merge(edges_wt, inv_wt, by = 'ft_i') |> 
+  distinct() |> dplyr::select(from, to, inv_dis) |> 
+  setNames(c(c('from','to', 'weight')))
 
 ### make graph and plot
 # 3. Build the igraph object
-g <- graph_from_data_frame(d = edges_wt, vertices = vert_sub, directed = TRUE) |>
+g <- graph_from_data_frame(d = edges_wt2, vertices = vert_sub, directed = TRUE) |>
   simplify()
 
 # 4. Extract coordinates into a 2-column matrix [Lon, Lat]
@@ -193,20 +206,22 @@ plot(world, col = 'gray')
 plot(g, 
      layout = geo_layout, 
      rescale = FALSE, 
-     edge.arrow.size=.3,
-     # edge.arrow.mode=2,
-     edge.color = 'dodgerblue3',
+     edge.arrow.size = .2,
+     edge.arrow.width = 2,
+     edge.color = 'dodgerblue4',
      vertex.size = 50, 
      # vertex.label = NA,
-     edge.width = E(g)$weight/10,
-     edge.curved=0.2,
-     main = "Geographic igraph Network", add= T)
+     edge.width = E(g)$weight*10,
+     edge.curved = 0.2,
+     main = "Geographic igraph Network", 
+     add = T)
 
 plot(g,
      edge.arrow.size=.3,
      # edge.arrow.mode=2,
      edge.color = 'dodgerblue3',
-     edge.width = E(g)$weight/10)
+     edge.width = E(g)$weight |> sqrt(),
+     loop.size = 2)
 
 
 ### assign membership
@@ -229,7 +244,7 @@ modularity(g, cle$membership)
 imc <- cluster_infomap(g)
 modularity(g, imc$membership)
 
-ldc <- cluster_leiden(as_undirected(g), resolution = 1)
+ldc <- cluster_leiden(as_undirected(g), objective_function = 'modularity', resolution = .1, n_iterations = 5)
 modularity(g, ldc$membership)
 
 clu <- cluster_louvain(as_undirected(g), resolution = 1)
@@ -240,8 +255,8 @@ modularity(g, cop$membership)
 
 igraph::compare(ceb, clp, method = 'nmi')
 igraph::compare(cfg, clp, method = 'nmi')
-igraph::compare(wc, clp, method = 'nmi')
-igraph::compare(wc, lec, method = 'nmi')
+igraph::compare(cwt, clp, method = 'nmi')
+igraph::compare(cwt, cle, method = 'nmi')
 
 
 
@@ -252,6 +267,7 @@ plot(ceb, g,
      layout = geo_layout, 
      rescale = FALSE,
      add = T)
+mtext(modularity(g, ceb$membership) |> round(digits=2))
 
 plot(world)
 plot(clp, g, 
@@ -259,6 +275,7 @@ plot(clp, g,
      layout = geo_layout, 
      rescale = FALSE,
      add = T)
+mtext(modularity(g, clp$membership) |> round(digits=2))
 
 plot(world)
 plot(cfg, as_undirected(g), 
@@ -266,6 +283,7 @@ plot(cfg, as_undirected(g),
      layout = geo_layout, 
      rescale = FALSE,
      add = T)
+mtext(modularity(g, cfg$membership) |> round(digits=2))
 
 plot(world)
 plot(cwt, g, 
@@ -273,6 +291,7 @@ plot(cwt, g,
      layout = geo_layout, 
      rescale = FALSE,
      add = T)
+mtext(modularity(g, cwt$membership) |> round(digits=2))
 
 plot(world)
 plot(cle, g, 
@@ -280,6 +299,7 @@ plot(cle, g,
      layout = geo_layout, 
      rescale = FALSE,
      add = T)
+mtext(modularity(g, cle$membership) |> round(digits=2))
 
 plot(world)
 plot(imc, g, 
@@ -287,6 +307,7 @@ plot(imc, g,
      layout = geo_layout, 
      rescale = FALSE,
      add = T)
+mtext(modularity(g, imc$membership) |> round(digits=2))
 
 plot(world)
 plot(ldc, g, 
@@ -294,6 +315,7 @@ plot(ldc, g,
      layout = geo_layout, 
      rescale = FALSE,
      add = T)
+mtext(modularity(g, ldc$membership) |> round(digits=2))
 
 plot(world)
 plot(clu, g, 
@@ -301,6 +323,7 @@ plot(clu, g,
      layout = geo_layout, 
      rescale = FALSE,
      add = T)
+mtext(modularity(g, clu$membership) |> round(digits=2))
 
 plot(world)
 plot(cop, g, 
@@ -308,10 +331,60 @@ plot(cop, g,
      layout = geo_layout, 
      rescale = FALSE,
      add = T)
+mtext(modularity(g, cop$membership) |> round(digits=2))
 
 
 
 #### testing
+
+### length conversions
+dats$LENGTH_DETERMINATION_1 |> table()
+dats$LENGTH_DETERMINATION_2 |> table()
+
+dats$LENGTH_UNIT_1 |> table()
+dats$LENGTH_UNIT_2 |> table()
+
+dats$LENGTH_TYPE_1 |> table()
+dats$LENGTH_TYPE_2 |> table()
+
+### convert to mm
+dats$LENGTH_1 <- dats$LENGTH_1 |> as.numeric()
+dats$lth_mm_1 <- ifelse(dats$LENGTH_UNIT_1 == 'CM', dats$LENGTH_1 * 10,
+                        ifelse(dats$LENGTH_UNIT_1 == 'IN', dats$LENGTH_1 * 25.4,
+                               dats$LENGTH_1))
+dats$LENGTH_2 <- dats$LENGTH_2 |> as.numeric()
+dats$lth_mm_2 <- ifelse(dats$LENGTH_UNIT_2 == 'CM', dats$LENGTH_2 * 10,
+                        ifelse(dats$LENGTH_UNIT_2 == 'IN', dats$LENGTH_2 * 25.4,
+                               ifelse(dats$LENGTH_UNIT_2 == 'FT', dats$LENGTH_2 * 304.8,
+                                      dats$LENGTH_2)))
+
+### convert to FL
+dats$lth_mm_1 <- ifelse(dats$LENGTH_TYPE_1 == 'TLE',
+                        -4.28+0.963*dats$lth_mm_1, dats$lth_mm_1)
+dats$lth_mm_2 <- ifelse(dats$LENGTH_TYPE_2 == 'TLE',
+                        -4.28+0.963*dats$lth_mm_2, dats$lth_mm_2)
+hist(dats$lth_mm_1)
+hist(dats$lth_mm_2)
+hist(dats$LENGTH_2)
+
+which(dats$lth_mm_2>2000)
+dats$LENGTH_2[412]
+dats$LENGTH_UNIT_2[412] ### looks like it should be mm not cm
+dats$lth_mm_2[412] <- 805
+
+dats$LENGTH_2[24189] ### looks like it was entered incorrectly, should read 25
+dats$LENGTH_UNIT_2[24189]
+dats$LENGTH_2[24189] <- 25
+dats$lth_mm_2[24189] <- dats$LENGTH_2[24189] * 25.4 # convert from 
+
+boxplot(dats$lth_mm_1 ~ dats$RELEASE_MONTH)
+boxplot(dats$lth_mm_1 ~ dats$RELEASE_YEAR)
+
+boxplot(dats$lth_mm_2 ~ dats$RECAPTURE_MONTH)
+boxplot(dats$lth_mm_2 ~ dats$RECAPTURE_year)
+
+boxplot(dats$lth_mm_1 ~ dats$COUNTRY_ID_2)
+boxplot(dats$lth_mm_1 ~ dats$STATE_ID_2)
 
 contract(g,imc$membership) |> plot()
 
