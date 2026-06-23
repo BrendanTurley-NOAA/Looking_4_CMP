@@ -205,6 +205,7 @@ kmk_pos$jday <- kmk_pos$start_utc |> yday()
 kmk_pos$TIME_MIL <- sprintf('%04d', kmk_pos$TIME_MIL)
 kmk_pos$hour <- paste0(substr(kmk_pos$TIME_MIL,1,2),':',substr(kmk_pos$TIME_MIL,3,4)) |>
   hm() |> hour()
+kmk_pos$year <- year(kmk_pos$start_utc)
 
 plot(kmk_pos$lon, kmk_pos$lat, cex = (kmk_pos$cpue)/100, asp = 1)
 plot(kmk_pos$lon, kmk_pos$lat, cex = log10(kmk_pos$cpue), asp = 1, pch = 21, bg = alpha('gray20',.2))
@@ -216,14 +217,20 @@ hist(kmk_pos$start_utc |> month())
 hist(kmk_pos$start_utc |> year())
 
 cpue_model <- gam(
-  cpue ~ s(TEMP_SSURF) + 
+  cpue ~ s(TEMPSURF) + 
+    # s(TEMP_BOT) +
     s(SALSURF) + 
+    # s(SALMAX) + 
     s(CHLORSURF) + 
-    s(depth) + 
+    # s(CHLORMAX) + 
+    s(OXYSURF) + 
+    # s(OXYMAX) + 
+    s(WIND_SPD) +
+    s(depth) +
     s(lon, lat) +               # 2D spatial smooth
     s(jday, bs = "cc") +        # Cyclic smooth for Julian day (wraps around)
     s(hour, bs = "cc") +        # Cyclic smooth for hour of day (wraps around)
-    as.factor(year(start_utc)),            # Year treated as a factor/fixed effect
+    s(year),            # Year treated as a factor/fixed effect
   data = kmk_pos,            # Replace with your dataset name
   # family=gaussian(),
   family = tw(), # Tweedie distribution (ideal for zero-inflated CPUE)
@@ -231,7 +238,11 @@ cpue_model <- gam(
 )
 summary(cpue_model)
 AIC(cpue_model)
-plot(cpue_model, pages=1, scale=F, shade=T)
+plot(cpue_model, pages=2, scale=F, shade=T, seWithMean=F, scheme=2)
+vis.gam(cpue_model, view = c('lon','lat'), plot.type = 'contour', lp = 1, #type = 'response',
+        n.grid = 100, too.far = 0.05, color = "heat", asp = 1)
+points(kmk_pos$lon, kmk_pos$lat, pch = '.')
+
 
 
 kmk_neg <- all0_merge |> 
@@ -245,7 +256,19 @@ kmk_neg$jday <- kmk_neg$start_utc |> yday()
 kmk_neg$TIME_MIL <- sprintf('%04d', kmk_neg$TIME_MIL)
 kmk_neg$hour <- paste0(substr(kmk_neg$TIME_MIL,1,2),':',substr(kmk_neg$TIME_MIL,3,4)) |>
   hm() |> hour()
+kmk_neg$year <- year(kmk_neg$start_utc) #|> as.factor
 
 plot(kmk_neg$lon, kmk_neg$lat, asp = 1)
 hist(kmk_neg$start_utc |> month())
 hist(kmk_neg$start_utc |> year())
+
+
+### questions to consider
+# Species distribution model (SDM) versus ecological niche model (ECM)
+# which variables are of interest depends on availability both in constructing model and making predictions
+# build SDM and compare to ECM, also compare to hypothetical species model
+### https://esajournals.onlinelibrary.wiley.com/doi/10.1002/ecm.1486
+### https://nsojournals.onlinelibrary.wiley.com/doi/10.1111/ecog.01388
+### https://rangeshifter.github.io/software/rangeshiftr/
+### https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.13076
+### https://www.r-bloggers.com/2024/03/how-to-interpret-and-report-nonlinear-effects-from-generalized-additive-models/
