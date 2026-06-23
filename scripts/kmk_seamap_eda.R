@@ -25,24 +25,32 @@ lthfreq <- read.csv('GLFREC.csv')
 bcodes <- read.csv('BIOCODES.csv')
 # merrec <- read.csv('MERREC.csv')
 
+### EDA
+sta$ymd <- mdy(sta$MO_DAY_YR)
+hist(year(sta$ymd))
+
+### subset for kmk
 kmk <- bcodes[grep('Scomberomorus cavalla', bcodes$TAXON, ignore.case = T),]
 catch_kmk <- subset(catch, BIO_BGS %in% kmk$BIOCODE)
 # merrec_kmk <- subset(merrec, BGSID %in% catch_kmk$BGSID)
-lthfreq_kmk <- subset(lthfreq, BGSID %in% catch_kmk$BGSID)
+lthfreq_kmk <- subset(lthfreq, BGSID %in% unique(catch_kmk$BGSID))
 
-sta_kmk <- subset(sta, STATIONID %in% catch_kmk$STATIONID)
-
-plot(sta_kmk$DECSLON,sta_kmk$DECSLAT, asp = 1)
-
-sta_kmk0 <- subset(sta, CRUISEID %in% catch_kmk$CRUISEID)
-sta_kmk0.1 <- subset(sta, CRUISE_NO %in% catch_kmk$CRUISE_NO)
-
-plot(sta_kmk$DECSLON,sta_kmk$DECSLAT, asp = 1)
-points(sta_kmk0$DECSLON,sta_kmk0$DECSLAT, col = 2)
+sta_kmk <- subset(sta, STATIONID %in% unique(catch_kmk$STATIONID))
+sta_kmk0 <- subset(sta, CRUISEID %in% unique(catch_kmk$CRUISEID))
+sta_kmk0 <- sta_kmk0[-which(is.element(sta_kmk0$STATIONID, sta_kmk$STATIONID)),]
 
 ### only shrimp trawl gear size 40
 gear_sta_id <- subset(invrec, GEAR_SIZE==40 & GEAR_TYPE=='ST', select = 'STATIONID')
-catch_kmk <- subset(catch_kmk, STATIONID %in% gear_sta_id$STATIONID)
+catch_kmk <- subset(catch_kmk, STATIONID %in% unique(gear_sta_id$STATIONID))
+sta_kmk <- subset(sta_kmk, STATIONID %in% unique(gear_sta_id$STATIONID))
+sta_kmk0 <- subset(sta_kmk0, STATIONID %in% unique(gear_sta_id$STATIONID))
+
+plot(sta_kmk0$DECSLON,sta_kmk0$DECSLAT, asp = 1, col = 2, pch = 3)
+points(sta_kmk$DECSLON,sta_kmk$DECSLAT, col = 1)
+
+hist(year(sta_kmk$ymd))
+hist(year(sta_kmk0$ymd))
+
 
 ### pull location (lon/lat), date-time, cruise, vessel, kmk # and weight, depth, sst, chl, sbt, wind sp and dir, wave ht and dir, air temp, air press
 # join cruise, vessel, station, env, catch
@@ -142,29 +150,41 @@ tow_lth <- distm(all_merge[,c('DECSLON','DECSLAT')],
   diag() |> set_units(km)
 all_merge$dist_fish[which(is.na(all_merge$dist_fish))] <- tow_lth[which(is.na(all_merge$dist_fish))]
 
-tow0_lth <- distm(all0_merge[,c('DECSLON','DECSLAT')],
-                 all0_merge[,c('DECELON','DECELAT')]) |> set_units(m) |> 
-  diag() |> set_units(km)
-df <- all0_merge %>%
-  rowwise() %>%
+# tow0_lth <- distm(all0_merge[,c('DECSLON','DECSLAT')],
+#                  all0_merge[,c('DECELON','DECELAT')]) |> set_units(m) |> 
+#   diag() |> set_units(km)
+tow0_lth <- all0_merge |>
+  rowwise() |>
   mutate(
     distance_meters = distm(
       c(DECSLON,DECSLAT), 
       c(DECELON,DECELAT), 
       fun = distHaversine
     )[, 1]
-  ) %>%
+  ) |>
   ungroup() |>
-  select(distance_meters)
-all0_merge$dist_fish[which(is.na(all0_merge$dist_fish))] <- tow0_lth[which(is.na(all0_merge$dist_fish))]
+  select(STATIONID, distance_meters)
+all0_merge$dist_fish[which(is.na(all0_merge$dist_fish))] <- tow0_lth$distance_meters[which(is.na(all0_merge$dist_fish))]
 
 # plot(all_merge$dist_fish, tow_lth, asp = 1,
 # panel.first = abline(0,1, col = 2, lwd = 2, lty = 5))
 # plot(all_merge[,c('DECSLON','DECSLAT')], asp = 1)
 # points(all_merge[,c('DECELON','DECELAT')], col = 2)
 
+remove0 <- function(x, col = c('hrs_fish','dist_fish','effort_km2','depth')) {
+  x <- drop_units(x)
+  for(i in 1:length(col)){
+    tmp <- x[,col[i]]
+    ind <- which(tmp==0 | is.na(tmp))
+    if(length(ind)>0){
+      x <- x[-ind, ]
+    }
+  }
+  x
+}
 
-
+all_merge <- remove0(all_merge)
+all0_merge <- remove0(all0_merge)
 
 ### use the operation code in invrec and haulvalue in starec to filter for quality
 ### things to poder:
@@ -176,10 +196,11 @@ all0_merge$dist_fish[which(is.na(all0_merge$dist_fish))] <- tow0_lth[which(is.na
 ### cpue ~ sst + sss + schl + depth + lon + lat + jday + hour + year
 
 kmk_pos <- all_merge |> 
-  select(CNTEXP, SELECT_BGS, effort_km2, dist_fish, lon, lat, TIME_MIL, TIME_EMIL, tz, START_DATE, start_utc, 
-         depth, TEMP_SSURF, TEMP_BOT, WIND_SPD, TEMPSURF, TEMPMAX, SALSURF,
-         SALMAX, CHLORSURF, CHLORMAX, OXYSURF, OXYMAX, TURBSURF, TURBMAX)
-kmk_pos$cpue <- kmk_pos$SELECT_BGS / kmk_pos$effort_km2 |> drop_units()
+  select(CNTEXP, SELECT_BGS, effort_km2, dist_fish, lon, lat, TIME_MIL, TIME_EMIL,
+         tz, START_DATE, start_utc, depth, TEMP_SSURF, TEMP_BOT, WIND_SPD, TEMPSURF,
+         TEMPMAX, SALSURF, SALMAX, CHLORSURF, CHLORMAX, OXYSURF, OXYMAX, TURBSURF, TURBMAX)
+kmk_pos$cpue <- kmk_pos$SELECT_BGS / kmk_pos$effort_km2 #|> drop_units()
+kmk_pos$npue <- kmk_pos$CNTEXP / kmk_pos$effort_km2 #|> drop_units()
 kmk_pos$jday <- kmk_pos$start_utc |> yday()
 kmk_pos$TIME_MIL <- sprintf('%04d', kmk_pos$TIME_MIL)
 kmk_pos$hour <- paste0(substr(kmk_pos$TIME_MIL,1,2),':',substr(kmk_pos$TIME_MIL,3,4)) |>
@@ -187,6 +208,12 @@ kmk_pos$hour <- paste0(substr(kmk_pos$TIME_MIL,1,2),':',substr(kmk_pos$TIME_MIL,
 
 plot(kmk_pos$lon, kmk_pos$lat, cex = (kmk_pos$cpue)/100, asp = 1)
 plot(kmk_pos$lon, kmk_pos$lat, cex = log10(kmk_pos$cpue), asp = 1, pch = 21, bg = alpha('gray20',.2))
+
+plot(kmk_pos$lon, kmk_pos$lat, cex = (kmk_pos$npue)/100, asp = 1)
+plot(kmk_pos$lon, kmk_pos$lat, cex = log10(kmk_pos$npue), asp = 1, pch = 21, bg = alpha('gray20',.2))
+
+hist(kmk_pos$start_utc |> month())
+hist(kmk_pos$start_utc |> year())
 
 cpue_model <- gam(
   cpue ~ s(TEMP_SSURF) + 
@@ -198,7 +225,27 @@ cpue_model <- gam(
     s(hour, bs = "cc") +        # Cyclic smooth for hour of day (wraps around)
     as.factor(year(start_utc)),            # Year treated as a factor/fixed effect
   data = kmk_pos,            # Replace with your dataset name
-  family = tw(),                     # Tweedie distribution (ideal for zero-inflated CPUE)
+  # family=gaussian(),
+  family = tw(), # Tweedie distribution (ideal for zero-inflated CPUE)
   method = "REML"                    # Restricted Maximum Likelihood (highly recommended)
 )
+summary(cpue_model)
+AIC(cpue_model)
+plot(cpue_model, pages=1, scale=F, shade=T)
 
+
+kmk_neg <- all0_merge |> 
+  select(effort_km2, dist_fish, lon, lat, TIME_MIL, TIME_EMIL,
+         tz, START_DATE, start_utc, depth, TEMP_SSURF, TEMP_BOT, WIND_SPD, TEMPSURF,
+         TEMPMAX, SALSURF, SALMAX, CHLORSURF, CHLORMAX, OXYSURF, OXYMAX, TURBSURF, TURBMAX)
+kmk_neg$SELECT_BGS <- kmk_neg$CNTEXP <- 0
+kmk_neg$cpue <- kmk_neg$SELECT_BGS / kmk_neg$effort_km2 #|> drop_units()
+kmk_neg$npue <- kmk_neg$CNTEXP / kmk_neg$effort_km2 #|> drop_units()
+kmk_neg$jday <- kmk_neg$start_utc |> yday()
+kmk_neg$TIME_MIL <- sprintf('%04d', kmk_neg$TIME_MIL)
+kmk_neg$hour <- paste0(substr(kmk_neg$TIME_MIL,1,2),':',substr(kmk_neg$TIME_MIL,3,4)) |>
+  hm() |> hour()
+
+plot(kmk_neg$lon, kmk_neg$lat, asp = 1)
+hist(kmk_neg$start_utc |> month())
+hist(kmk_neg$start_utc |> year())
