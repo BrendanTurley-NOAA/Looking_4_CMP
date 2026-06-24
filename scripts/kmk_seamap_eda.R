@@ -202,20 +202,21 @@ kmk_pos$jday <- kmk_pos$start_utc |> yday()
 kmk_pos$TIME_MIL <- sprintf('%04d', kmk_pos$TIME_MIL)
 kmk_pos$hour <- paste0(substr(kmk_pos$TIME_MIL,1,2),':',substr(kmk_pos$TIME_MIL,3,4)) |>
   hm() |> hour()
-kmk_pos$year <- year(kmk_pos$start_utc)
-kmk_pos$year_fac <- as.factor(kmk_pos$year)
-kmk_pos$month <- month(kmk_pos$start_utc)
-kmk_pos$month_fac <- as.factor(kmk_pos$month)
+kmk_pos$year <- year(kmk_pos$start_utc) |> as.factor()
+kmk_pos$month <- month(kmk_pos$start_utc) |> as.factor()
 
 par(mfrow=c(2,1))
 plot(kmk_pos$lon, kmk_pos$lat, cex = log10(kmk_pos$cpue), asp = 1, pch = 21, bg = alpha('gray20',.2))
 plot(kmk_pos$lon, kmk_pos$lat, cex = log10(kmk_pos$npue), asp = 1, pch = 21, bg = alpha('gray20',.2))
 
+hist(kmk_pos$lon,breaks=seq(-100,-80,.1),xlim=c(-90,-85))
 hist(kmk_pos$start_utc |> month())
 hist(kmk_pos$start_utc |> year())
 
+kmk_pos <- subset(kmk_pos, lon<=(-88))
+
 cpue_model <- gam(
-  cpue ~ s(TEMPSURF) + 
+  cpue2 ~ s(TEMPSURF) + 
     # s(TEMP_BOT) +
     s(SALSURF) + 
     # s(SALMAX) + 
@@ -225,12 +226,12 @@ cpue_model <- gam(
     # s(OXYMAX) + 
     s(WIND_SPD) +
     s(depth) +
-    # te(lon, lat) +               # 2D spatial smooth; alt: s(lon, lat)
-    s(lon, lat, bs = 'sos') +
+    te(lon, lat) +               # 2D spatial smooth; alt: s(lon, lat)
+    # s(lon, lat, bs = 'sos') +
     s(hour, bs = "cc") +        # Cyclic smooth for hour of day (wraps around)
     # s(jday, bs = "cc") +        # Cyclic smooth for Julian day (wraps around)
-    month_fac +
-    year_fac, # Year treated as a factor/fixed effect
+    month +
+    year, # Year treated as a factor/fixed effect
     # s(year),            
   data = kmk_pos,            # Replace with your dataset name
   # family=gaussian(),
@@ -239,6 +240,7 @@ cpue_model <- gam(
 )
 summary(cpue_model)
 AIC(cpue_model)
+gam.check(cpue_model, old.style=F, type=c("response"))
 plot(cpue_model, pages=1, scale=F, shade=T, seWithMean=T,scheme=2)
 vis.gam(cpue_model, view = c('lon','lat'), plot.type = 'contour', lp = 1, #type = 'response',
         n.grid = 100, too.far = 0.05, color = "heat", asp = 1)
@@ -247,22 +249,27 @@ points(kmk_pos$lon, kmk_pos$lat, pch = '.')
 
 
 kmk_neg <- all0_merge |> 
-  select(effort_km2, dist_fish, lon, lat, TIME_MIL, TIME_EMIL,
+  select(effort_km2, dist_fish, MIN_FISH, hrs_fish, lon, lat, TIME_MIL, TIME_EMIL,
          tz, START_DATE, start_utc, depth, TEMP_SSURF, TEMP_BOT, WIND_SPD, TEMPSURF,
          TEMPMAX, SALSURF, SALMAX, CHLORSURF, CHLORMAX, OXYSURF, OXYMAX, TURBSURF, TURBMAX)
 kmk_neg$SELECT_BGS <- kmk_neg$CNTEXP <- 0
 kmk_neg$cpue <- kmk_neg$SELECT_BGS / kmk_neg$effort_km2 #|> drop_units()
+kmk_neg$cpue2 <- kmk_neg$SELECT_BGS / kmk_neg$hrs_fish #|> drop_units()
 kmk_neg$npue <- kmk_neg$CNTEXP / kmk_neg$effort_km2 #|> drop_units()
+kmk_neg$npue2 <- kmk_neg$CNTEXP / kmk_neg$hrs_fish #|> drop_units()
 kmk_neg$jday <- kmk_neg$start_utc |> yday()
 kmk_neg$TIME_MIL <- sprintf('%04d', kmk_neg$TIME_MIL)
 kmk_neg$hour <- paste0(substr(kmk_neg$TIME_MIL,1,2),':',substr(kmk_neg$TIME_MIL,3,4)) |>
   hm() |> hour()
-kmk_neg$year <- year(kmk_neg$start_utc) #|> as.factor
+kmk_neg$year <- year(kmk_neg$start_utc) |> as.factor()
+kmk_neg$month <- month(kmk_neg$start_utc) |> as.factor()
 
 plot(kmk_neg$lon, kmk_neg$lat, asp = 1)
+hist(kmk_neg$lon,breaks=seq(-100,-80,.1),xlim=c(-90,-85))
 hist(kmk_neg$start_utc |> month())
 hist(kmk_neg$start_utc |> year())
 
+kmk_neg <- subset(kmk_neg, lon<=(-88))
 
 ### compbined
 kmk_com <- rbind(kmk_pos, kmk_neg)
@@ -278,10 +285,12 @@ cpue_model <- gam(
     # s(OXYMAX) + 
     s(WIND_SPD) +
     s(depth) +
-    s(lon, lat) +               # 2D spatial smooth
-    s(jday, bs = "cc") +        # Cyclic smooth for Julian day (wraps around)
+    te(lon, lat) +               # 2D spatial smooth; alt: s(lon, lat)
+    # s(lon, lat, bs = 'sos') +
     s(hour, bs = "cc") +        # Cyclic smooth for hour of day (wraps around)
-    s(year),            # Year treated as a factor/fixed effect
+    # s(jday, bs = "cc") +        # Cyclic smooth for Julian day (wraps around)
+    month +
+    year, # Year treated as a factor/fixed effect
   data = kmk_com,            # Replace with your dataset name
   # family=gaussian(),
   family = tw(), # Tweedie distribution (ideal for zero-inflated CPUE)
@@ -312,4 +321,7 @@ points(kmk_pos$lon, kmk_pos$lat, pch = '.')
 ### https://kevintshoemaker.github.io/NRES-746/GAMs_Lab.html
 ### https://noamross.github.io/gams-in-r-course/
 
+### sdmtbm
+### gbm
+### randomforest
 
