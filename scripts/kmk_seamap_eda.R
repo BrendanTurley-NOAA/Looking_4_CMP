@@ -27,7 +27,6 @@ bcodes <- read.csv('BIOCODES.csv')
 
 ### EDA
 sta$ymd <- mdy(sta$MO_DAY_YR)
-hist(year(sta$ymd))
 
 ### subset for kmk
 kmk <- bcodes[grep('Scomberomorus cavalla', bcodes$TAXON, ignore.case = T),]
@@ -36,7 +35,7 @@ catch_kmk <- subset(catch, BIO_BGS %in% kmk$BIOCODE)
 lthfreq_kmk <- subset(lthfreq, BGSID %in% unique(catch_kmk$BGSID))
 
 sta_kmk <- subset(sta, STATIONID %in% unique(catch_kmk$STATIONID))
-sta_kmk0 <- subset(sta, CRUISEID %in% unique(catch_kmk$CRUISEID))
+sta_kmk0 <- subset(sta, is.element(CRUISEID, sta_kmk$CRUISEID))
 sta_kmk0 <- sta_kmk0[-which(is.element(sta_kmk0$STATIONID, sta_kmk$STATIONID)),]
 
 ### only shrimp trawl gear size 40
@@ -82,24 +81,19 @@ all0_merge <- merge(sta_kmk0, env, by = c('STATIONID', 'CRUISEID', 'VESSEL', 'CR
 # table(all_merge$HAULVALUE,useNA = 'always')
 
 ### effort: mins, distance, km^2 = vessel_spd(kt) * 1.85184(kph) * min_fish/60 * gear_size(ft) * .3048/1000(km)
-# all_merge$ves_spd_kph <- all_merge$VESSEL_SPD * 1.85184
-# all_merge$hrs_fish <- all_merge$MIN_FISH / 60
-# all_merge$gear_km <- all_merge$GEAR_SIZE * .3048/1000
-all_merge$VESSEL_SPD <- set_units(all_merge$VESSEL_SPD, knots)
-all_merge$VESSEL_SPD <- set_units(all_merge$VESSEL_SPD, km/h)
-all_merge$hrs_fish <- set_units(all_merge$MIN_FISH / 60, hours)
-all_merge$GEAR_SIZE <- set_units(all_merge$GEAR_SIZE, feet)
-all_merge$GEAR_SIZE <- set_units(all_merge$GEAR_SIZE, km)
-all_merge$dist_fish <- all_merge$VESSEL_SPD * all_merge$hrs_fish
-all_merge$effort_km2 <- all_merge$dist_fish * all_merge$GEAR_SIZE
+all_merge <- all_merge |>
+  mutate(VESSEL_SPD = set_units(VESSEL_SPD, knots) |> set_units(km/h),
+         hrs_fish = set_units(MIN_FISH / 60, hours),
+         GEAR_SIZE = set_units(GEAR_SIZE, feet) |> set_units(km),
+         dist_fish = VESSEL_SPD * hrs_fish,
+         effort_km2 = dist_fish * GEAR_SIZE)
 
-all0_merge$VESSEL_SPD <- set_units(all0_merge$VESSEL_SPD, knots)
-all0_merge$VESSEL_SPD <- set_units(all0_merge$VESSEL_SPD, km/h)
-all0_merge$hrs_fish <- set_units(all0_merge$MIN_FISH / 60, hours)
-all0_merge$GEAR_SIZE <- set_units(all0_merge$GEAR_SIZE, feet)
-all0_merge$GEAR_SIZE <- set_units(all0_merge$GEAR_SIZE, km)
-all0_merge$dist_fish <- all0_merge$VESSEL_SPD * all0_merge$hrs_fish
-all0_merge$effort_km2 <- all0_merge$dist_fish * all0_merge$GEAR_SIZE
+all0_merge <- all0_merge |>
+  mutate(VESSEL_SPD = set_units(VESSEL_SPD, knots) |> set_units(km/h),
+         hrs_fish = set_units(MIN_FISH / 60, hours),
+         GEAR_SIZE = set_units(GEAR_SIZE, feet) |> set_units(km),
+         dist_fish = VESSEL_SPD * hrs_fish,
+         effort_km2 = dist_fish * GEAR_SIZE)
 
 ### take mean location and depth
 all_merge <- all_merge |>
@@ -196,21 +190,25 @@ all0_merge <- remove0(all0_merge)
 ### cpue ~ sst + sss + schl + depth + lon + lat + jday + hour + year
 
 kmk_pos <- all_merge |> 
-  select(CNTEXP, SELECT_BGS, effort_km2, dist_fish, lon, lat, TIME_MIL, TIME_EMIL,
-         tz, START_DATE, start_utc, depth, TEMP_SSURF, TEMP_BOT, WIND_SPD, TEMPSURF,
-         TEMPMAX, SALSURF, SALMAX, CHLORSURF, CHLORMAX, OXYSURF, OXYMAX, TURBSURF, TURBMAX)
+  select(CNTEXP, SELECT_BGS, effort_km2, dist_fish, MIN_FISH, hrs_fish, lon, lat,
+         TIME_MIL, TIME_EMIL, tz, START_DATE, start_utc, depth, TEMP_SSURF, TEMP_BOT,
+         WIND_SPD, TEMPSURF, TEMPMAX, SALSURF, SALMAX, CHLORSURF, CHLORMAX, OXYSURF,
+         OXYMAX, TURBSURF, TURBMAX)
 kmk_pos$cpue <- kmk_pos$SELECT_BGS / kmk_pos$effort_km2 #|> drop_units()
+kmk_pos$cpue2 <- kmk_pos$SELECT_BGS / kmk_pos$hrs_fish #|> drop_units()
 kmk_pos$npue <- kmk_pos$CNTEXP / kmk_pos$effort_km2 #|> drop_units()
+kmk_pos$npue2 <- kmk_pos$CNTEXP / kmk_pos$hrs_fish #|> drop_units()
 kmk_pos$jday <- kmk_pos$start_utc |> yday()
 kmk_pos$TIME_MIL <- sprintf('%04d', kmk_pos$TIME_MIL)
 kmk_pos$hour <- paste0(substr(kmk_pos$TIME_MIL,1,2),':',substr(kmk_pos$TIME_MIL,3,4)) |>
   hm() |> hour()
 kmk_pos$year <- year(kmk_pos$start_utc)
+kmk_pos$year_fac <- as.factor(kmk_pos$year)
+kmk_pos$month <- month(kmk_pos$start_utc)
+kmk_pos$month_fac <- as.factor(kmk_pos$month)
 
-plot(kmk_pos$lon, kmk_pos$lat, cex = (kmk_pos$cpue)/100, asp = 1)
+par(mfrow=c(2,1))
 plot(kmk_pos$lon, kmk_pos$lat, cex = log10(kmk_pos$cpue), asp = 1, pch = 21, bg = alpha('gray20',.2))
-
-plot(kmk_pos$lon, kmk_pos$lat, cex = (kmk_pos$npue)/100, asp = 1)
 plot(kmk_pos$lon, kmk_pos$lat, cex = log10(kmk_pos$npue), asp = 1, pch = 21, bg = alpha('gray20',.2))
 
 hist(kmk_pos$start_utc |> month())
@@ -227,10 +225,13 @@ cpue_model <- gam(
     # s(OXYMAX) + 
     s(WIND_SPD) +
     s(depth) +
-    s(lon, lat) +               # 2D spatial smooth
-    s(jday, bs = "cc") +        # Cyclic smooth for Julian day (wraps around)
+    # te(lon, lat) +               # 2D spatial smooth; alt: s(lon, lat)
+    s(lon, lat, bs = 'sos') +
     s(hour, bs = "cc") +        # Cyclic smooth for hour of day (wraps around)
-    s(year),            # Year treated as a factor/fixed effect
+    # s(jday, bs = "cc") +        # Cyclic smooth for Julian day (wraps around)
+    month_fac +
+    year_fac, # Year treated as a factor/fixed effect
+    # s(year),            
   data = kmk_pos,            # Replace with your dataset name
   # family=gaussian(),
   family = tw(), # Tweedie distribution (ideal for zero-inflated CPUE)
@@ -238,7 +239,7 @@ cpue_model <- gam(
 )
 summary(cpue_model)
 AIC(cpue_model)
-plot(cpue_model, pages=2, scale=F, shade=T, seWithMean=F, scheme=2)
+plot(cpue_model, pages=1, scale=F, shade=T, seWithMean=T,scheme=2)
 vis.gam(cpue_model, view = c('lon','lat'), plot.type = 'contour', lp = 1, #type = 'response',
         n.grid = 100, too.far = 0.05, color = "heat", asp = 1)
 points(kmk_pos$lon, kmk_pos$lat, pch = '.')
@@ -263,6 +264,38 @@ hist(kmk_neg$start_utc |> month())
 hist(kmk_neg$start_utc |> year())
 
 
+### compbined
+kmk_com <- rbind(kmk_pos, kmk_neg)
+
+cpue_model <- gam(
+  cpue ~ s(TEMPSURF) + 
+    # s(TEMP_BOT) +
+    s(SALSURF) + 
+    # s(SALMAX) + 
+    s(CHLORSURF) + 
+    # s(CHLORMAX) + 
+    s(OXYSURF) + 
+    # s(OXYMAX) + 
+    s(WIND_SPD) +
+    s(depth) +
+    s(lon, lat) +               # 2D spatial smooth
+    s(jday, bs = "cc") +        # Cyclic smooth for Julian day (wraps around)
+    s(hour, bs = "cc") +        # Cyclic smooth for hour of day (wraps around)
+    s(year),            # Year treated as a factor/fixed effect
+  data = kmk_com,            # Replace with your dataset name
+  # family=gaussian(),
+  family = tw(), # Tweedie distribution (ideal for zero-inflated CPUE)
+  method = "REML"                    # Restricted Maximum Likelihood (highly recommended)
+)
+summary(cpue_model)
+AIC(cpue_model)
+gam.check(cpue_model, old.style=F, type=c("response"))
+plot(cpue_model, pages=1, scale=F, shade=T, seWithMean=F, scheme=2)
+vis.gam(cpue_model, view = c('lon','lat'), plot.type = 'contour', lp = 1, #type = 'response',
+        n.grid = 100, too.far = 0.05, color = "heat", asp = 1)
+points(kmk_pos$lon, kmk_pos$lat, pch = '.')
+
+
 ### questions to consider
 # Species distribution model (SDM) versus ecological niche model (ECM)
 # which variables are of interest depends on availability both in constructing model and making predictions
@@ -272,3 +305,11 @@ hist(kmk_neg$start_utc |> year())
 ### https://rangeshifter.github.io/software/rangeshiftr/
 ### https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.13076
 ### https://www.r-bloggers.com/2024/03/how-to-interpret-and-report-nonlinear-effects-from-generalized-additive-models/
+### https://easystats.github.io/bayestestR/
+### https://github.com/paul-buerkner/brms
+### https://rspatial.org/raster/sdm/index.html
+### https://github.com/helixcn/sdm_r_packages
+### https://kevintshoemaker.github.io/NRES-746/GAMs_Lab.html
+### https://noamross.github.io/gams-in-r-course/
+
+
