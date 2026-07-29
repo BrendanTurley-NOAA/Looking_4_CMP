@@ -1,6 +1,15 @@
+### to do
+# 1 create larger groups for an adjacency matrix for use in migration code
+# 1a groups are Mexico, Texas, eastern Gulf, South Atlantic
+# 1b How to classify FL Keys and LA?
+# 2 run code and create sensitivity analyses to test assumptions
+# 3 plot density maps of release and recapture locations
+# 4 plot out lengths for release and recapture across years and locations
+
 
 # https://kateto.net/netscix2016.html
 
+library(lubridate)
 library(dplyr)
 library(igraph)
 library(sf)
@@ -19,6 +28,7 @@ setwd("~/CMP/data/tagging")
 dats <- read_xlsx('King_Mackerel_extraction.xlsx', sheet = 2) |>
   type.convert()
 
+dats$TAG_DATE_2 <- as.Date(as.numeric(dats$TAG_DATE_2), origin = '1899-12-31')
 dats$RECAPTURE_MONTH <- as.numeric(dats$RECAPTURE_MONTH)
 dats$RECAPTURE_year <- as.numeric(dats$RECAPTURE_year)
 dats$LONGITUDE_2 <- as.numeric(dats$LONGITUDE_2)
@@ -29,48 +39,8 @@ dats$DAYS_AT_LARGE <- as.numeric(dats$DAYS_AT_LARGE)
 dat <- subset(dats, LONGITUDE_1<(-70)) |>
   subset(LONGITUDE_2 <(-70))
 
-# distance_km <- distm(dat[,c('LONGITUDE_1','LATITUDE_1')], 
-#                          dat[,c('LONGITUDE_2','LATITUDE_2')],
-#                          fun = distHaversine) |> diag()/1000
 
-
-recaptures <- subset(dat, !is.na(RECAPTURE_year)) |>
-  subset(!is.na(LONGITUDE_2)) |> 
-  type.convert()
-
-### subset data for TAL
-recap_sub <- subset(recaptures, DAYS_AT_LARGE<180)
-
-
-win <- subset(recap_sub, month(TAG_DATE_1)==12 | month(TAG_DATE_1)<3)
-spr <- subset(recap_sub, month(TAG_DATE_1)>2 & month(TAG_DATE_1)<6)
-sum <- subset(recap_sub, month(TAG_DATE_1)>5 & month(TAG_DATE_1)<9)
-aut <- subset(recap_sub, month(TAG_DATE_1)>8 | month(TAG_DATE_1)<12)
-
-par(mfrow=c(2,2))
-plot(recap_sub$LONGITUDE_1, recap_sub$LATITUDE_1, typ = 'n')
-arrows(win$LONGITUDE_1, win$LATITUDE_1,
-       win$LONGITUDE_2, win$LATITUDE_2,
-       length = .05)
-
-plot(recap_sub$LONGITUDE_1, recap_sub$LATITUDE_1, typ = 'n')
-arrows(spr$LONGITUDE_1, spr$LATITUDE_1,
-       spr$LONGITUDE_2, spr$LATITUDE_2,
-       length = .05)
-
-plot(recap_sub$LONGITUDE_1, recap_sub$LATITUDE_1, typ = 'n')
-arrows(sum$LONGITUDE_1, sum$LATITUDE_1,
-       sum$LONGITUDE_2, sum$LATITUDE_2,
-       length = .05)
-
-plot(recap_sub$LONGITUDE_1, recap_sub$LATITUDE_1, typ = 'n')
-arrows(aut$LONGITUDE_1, aut$LATITUDE_1,
-       aut$LONGITUDE_2, aut$LATITUDE_2,
-       length = .05)
-
-
-### find all nodes
-
+### define the grid
 lons <- seq(min(c(dat$LONGITUDE_1, dat$LONGITUDE_2)) |> floor(),
             max(c(dat$LONGITUDE_1, dat$LONGITUDE_2)) |> ceiling(),
             1)
@@ -84,7 +54,8 @@ lon_lat$xy.grid <- paste(lon_lat$x.grid, lon_lat$y.grid)
 lon_lat$lon <- lon_lat$lon - .5
 lon_lat$lat <- lon_lat$lat - .5
 
-### spatial domain
+
+### make spatial domain
 min_lon <- min(lons)
 max_lon <- max(lons)
 min_lat <- min(lats)
@@ -96,6 +67,66 @@ world <- ne_download(scale = 10, type = "countries",
   crop(ext(min_lon,max_lon,min_lat,max_lat))
 
 
+### subset for recaptures
+recaptures <- subset(dat, !is.na(RECAPTURE_year)) |>
+  subset(!is.na(LONGITUDE_2)) |> 
+  type.convert()
+
+plot(world, col = 'gray')
+arrows(recaptures$LONGITUDE_1, recaptures$LATITUDE_1,
+       recaptures$LONGITUDE_2, recaptures$LATITUDE_2,
+       length = .05)
+
+
+### subset data for TAL
+recap_sub <- subset(recaptures, DAYS_AT_LARGE<90)
+
+win1 <- subset(recap_sub, month(TAG_DATE_1)==12 | month(TAG_DATE_1)<3)
+spr1 <- subset(recap_sub, month(TAG_DATE_1)>2 & month(TAG_DATE_1)<6)
+sum1 <- subset(recap_sub, month(TAG_DATE_1)>5 & month(TAG_DATE_1)<9)
+aut1 <- subset(recap_sub, month(TAG_DATE_1)>8 & month(TAG_DATE_1)<12)
+
+win2 <- subset(recap_sub, month(TAG_DATE_2)==12 | month(TAG_DATE_2)<3)
+spr2 <- subset(recap_sub, month(TAG_DATE_2)>2 & month(TAG_DATE_2)<6)
+sum2 <- subset(recap_sub, month(TAG_DATE_2)>5 & month(TAG_DATE_2)<9)
+aut2 <- subset(recap_sub, month(TAG_DATE_2)>8 & month(TAG_DATE_2)<12)
+
+par(mfrow=c(2,2))
+plot(1, 1, typ = 'n', xlim = c(min_lon,max_lon), ylim = c(min_lat,max_lat))
+arrows(win1$LONGITUDE_1, win1$LATITUDE_1,
+       win1$LONGITUDE_2, win1$LATITUDE_2,
+       length = .05)
+arrows(win2$LONGITUDE_1, win2$LATITUDE_1,
+       win2$LONGITUDE_2, win2$LATITUDE_2,
+       length = .05)
+
+plot(1, 1, typ = 'n', xlim = c(min_lon,max_lon), ylim = c(min_lat,max_lat))
+arrows(spr1$LONGITUDE_1, spr1$LATITUDE_1,
+       spr1$LONGITUDE_2, spr1$LATITUDE_2,
+       length = .05)
+arrows(spr2$LONGITUDE_1, spr2$LATITUDE_1,
+       spr2$LONGITUDE_2, spr2$LATITUDE_2,
+       length = .05)
+
+plot(1, 1, typ = 'n', xlim = c(min_lon,max_lon), ylim = c(min_lat,max_lat))
+arrows(sum1$LONGITUDE_1, sum1$LATITUDE_1,
+       sum1$LONGITUDE_2, sum1$LATITUDE_2,
+       length = .05)
+arrows(sum2$LONGITUDE_1, sum2$LATITUDE_1,
+       sum2$LONGITUDE_2, sum2$LATITUDE_2,
+       length = .05)
+
+plot(1, 1, typ = 'n', xlim = c(min_lon,max_lon), ylim = c(min_lat,max_lat))
+arrows(aut1$LONGITUDE_1, aut1$LATITUDE_1,
+       aut1$LONGITUDE_2, aut1$LATITUDE_2,
+       length = .05)
+arrows(aut2$LONGITUDE_1, aut2$LATITUDE_1,
+       aut2$LONGITUDE_2, aut2$LATITUDE_2,
+       length = .05)
+
+
+
+### define nodes in grid
 release <- data.frame(
   id = recaptures$id,
   lon = recaptures$LONGITUDE_1 |> as.numeric(),
@@ -109,15 +140,24 @@ capture <- data.frame(
 release$x.grid <- cut(release$lon, lons)
 release$y.grid <- cut(release$lat, lats)
 release$xy.grid <- paste(release$x.grid, release$y.grid)
+release$rel_cap <- 'release'
 
 capture$x.grid <- cut(capture$lon, lons)
 capture$y.grid <- cut(capture$lat, lats)
 capture$xy.grid <- paste(capture$x.grid, capture$y.grid)
+capture$rel_cap <- 'capture'
 
 all_grids <- rbind(release, capture)
+tallys <- table(all_grids$xy.grid,all_grids$rel_cap) |> as.data.frame.matrix()
+tallys$xy.grid <- rownames(tallys)
 nodes_id <- all_grids$xy.grid |> unique() |> sort()
 nodes <- data.frame(grid = 1:length(nodes_id), xy.grid = nodes_id) |> 
-  merge(lon_lat, by = 'xy.grid', all.x = T)
+  merge(lon_lat, by = 'xy.grid', all.x = T) |> 
+  merge(tallys, by = 'xy.grid', all.x = T)
+
+par(mfrow=c(2,1))
+plot(nodes$lon, nodes$lat, cex = log1p(nodes$release))
+plot(nodes$lon, nodes$lat, cex = log1p(nodes$capture))
 
 
 ### find land and remove nodes
@@ -129,12 +169,13 @@ land_nodes <- nodes[is.element(nodes$grid, land),]
 not_land_grids <- nodes$grid[!is.element(nodes$grid, land)]
 nodes <- nodes[!is.element(nodes$grid, land), ]
 
+
 ### define vertices
 vertices <- nodes[,2:4]
 
-
 ### subset data for TAL
-recap_sub <- subset(recaptures, DAYS_AT_LARGE<90)
+recap_sub <- recaptures
+# recap_sub <- subset(recaptures, DAYS_AT_LARGE<90)
 # recap_sub <- subset(recaptures, DAYS_AT_LARGE>365)
 
 rel_sub <- subset(release, id %in% recap_sub$id)
@@ -161,13 +202,13 @@ from_tmp <- merge(rel_sub, nodes_sub, by = 'xy.grid', all.x = T) |> dplyr::selec
 to_tmp <- merge(cap_sub, nodes_sub, by = 'xy.grid', all.x = T) |> dplyr::select(id, grid)
 edges <- merge(from_tmp, to_tmp, by = 'id') |> dplyr::select('grid.x','grid.y') |>
   setNames(c('from','to'))
-# edges_c <- distinct(edges)
-edges_wt <- table(edges) |> as.data.frame()
-edges_wt <- subset(edges_wt, Freq>0) |> 
+### define weights as number of tags
+edges_wt1 <- edges |> 
+  table() |> as.data.frame() |>
+  subset(Freq>0)  |> 
   setNames(c(c('from','to', 'weight')))
-# edges_wt <- subset(edges_wt, weight>1)
-edges_wt <- edges_wt[which(edges_wt$to %in% not_land_grids), ]
-edges_wt <- edges_wt[which(edges_wt$from %in% not_land), ]
+# edges_wt <- edges_wt[which(edges_wt$to %in% not_land_grids), ]
+# edges_wt <- edges_wt[which(edges_wt$from %in% not_land_grids), ]
 
 
 ### define weights as inverse distance
@@ -176,24 +217,23 @@ to_tmp <- merge(cap_sub, nodes_sub, by = 'xy.grid', all.x = T) |> dplyr::select(
 edges <- merge(from_tmp, to_tmp, by = 'id') |> 
   dplyr::select('grid.x', 'lon.y.x', 'lat.y.x', 'grid.y', 'lon.y.y', 'lat.y.y') |>
   setNames(c('from','from.x','from.y','to','to.x','to.y'))
+edges_wt <- edges |> dplyr::select(from, to) |> table() |> as.data.frame() |>
+  subset(Freq>0)
 distance_km <- distm(edges[,c('from.x','from.y')],
                      edges[,c('to.x','to.y')],
-                         fun = distHaversine) |> diag()/1000
+                     fun = distHaversine) |> diag()/1000
 distance_km[which(distance_km==0)] <- 1
 inv_wt <- data.frame(inv_dis = 1/distance_km,
                      ft_i = paste0(edges$from,edges$to))
-inv_distance <- data
-
-edges_wt <- edges |> dplyr::select(from, to) |> table() |> as.data.frame() |>
-  subset(Freq>0)
 edges_wt$ft_i <- paste0(edges_wt$from,edges_wt$to)
 edges_wt2 <- merge(edges_wt, inv_wt, by = 'ft_i') |> 
   distinct() |> dplyr::select(from, to, inv_dis) |> 
   setNames(c(c('from','to', 'weight')))
 
+
 ### make graph and plot
 # 3. Build the igraph object
-g <- graph_from_data_frame(d = edges_wt2, vertices = vert_sub, directed = TRUE) |>
+g <- graph_from_data_frame(d = edges_wt1, vertices = vert_sub, directed = TRUE) |>
   simplify()
 
 # 4. Extract coordinates into a 2-column matrix [Lon, Lat]
@@ -206,12 +246,12 @@ plot(world, col = 'gray')
 plot(g, 
      layout = geo_layout, 
      rescale = FALSE, 
-     edge.arrow.size = .2,
+     edge.arrow.size = .3,
      edge.arrow.width = 2,
      edge.color = 'dodgerblue4',
      vertex.size = 50, 
-     # vertex.label = NA,
-     edge.width = E(g)$weight*10,
+     # vertex.label = components(g)$membership,
+     edge.width = E(g)$weight,
      edge.curved = 0.2,
      main = "Geographic igraph Network", 
      add = T)
@@ -224,6 +264,7 @@ plot(g,
      loop.size = 2)
 
 
+### this attempt tp classify using graph theory is not productive and flawed given the data
 ### assign membership
 ceb <- cluster_edge_betweenness(g, weights = E(g)$weight) 
 modularity(g, ceb$membership)
@@ -244,10 +285,11 @@ modularity(g, cle$membership)
 imc <- cluster_infomap(g)
 modularity(g, imc$membership)
 
-ldc <- cluster_leiden(as_undirected(g), objective_function = 'modularity', resolution = .1, n_iterations = 5)
+ldc <- cluster_leiden(as_undirected(g), objective_function = 'modularity', 
+                      resolution = .5, n_iterations = 10)
 modularity(g, ldc$membership)
 
-clu <- cluster_louvain(as_undirected(g), resolution = 1)
+clu <- cluster_louvain(as_undirected(g), resolution = .5)
 modularity(g, clu$membership)
 
 cop <- cluster_optimal(g)
@@ -333,6 +375,12 @@ plot(cop, g,
      add = T)
 mtext(modularity(g, cop$membership) |> round(digits=2))
 
+plot(world)
+plot(cop, g, 
+     edge.arrow.size=.2,
+     layout = geo_layout, 
+     rescale = FALSE,
+     add = T)
 
 
 #### testing
@@ -386,7 +434,7 @@ boxplot(dats$lth_mm_2 ~ dats$RECAPTURE_year)
 boxplot(dats$lth_mm_1 ~ dats$COUNTRY_ID_2)
 boxplot(dats$lth_mm_1 ~ dats$STATE_ID_2)
 
-contract(g,imc$membership) |> plot()
+contract(g,cop$membership) |> plot()
 
 # Decompose graph into connected components
 comps <- decompose(g)
@@ -405,6 +453,8 @@ plot(giant_comp,
      rescale = FALSE)
 
 
+
+
 library(MASS)
 library(cmocean)
 
@@ -416,11 +466,26 @@ allrel_kde <- kde2d(dat$LONGITUDE_1, dat$LATITUDE_1,
                     h = c(.5,.5))
 allrel_kde$z[which(allrel_kde$z<quantile(allrel_kde$z,.95))] <- NA
 brks <- pretty(allrel_kde$z,n=50)
-col <- cmocean('thermal')(length(brks)-1)
+col <- cmocean('matter')(length(brks)-1) #|> rev()
 
-image(allrel_kde, asp = 1, col = col, breaks = brks)
-plot(world, add = T, col = 'gray')
-points(dat$LONGITUDE_1, dat$LATITUDE_1)
+allcap_kde <- kde2d(dat$LONGITUDE_2, dat$LATITUDE_2,
+                    n = c(length(lons)*10,length(lats)*10),
+                    h = c(.5,.5))
+allcap_kde$z[which(allcap_kde$z<quantile(allcap_kde$z,.95))] <- NA
+brks2 <- pretty(allcap_kde$z,n=50)
+col2 <- cmocean('matter')(length(brks2)-1) #|> rev()
+
+# image(allrel_kde, asp = 1, col = col, breaks = brks)
+# plot(world, add = T, col = 'gray')
+# points(dat$LONGITUDE_1, dat$LATITUDE_1)
+
+plot(world, col = 'gray')
+image(allrel_kde, asp = 1, col = col, breaks = brks, add = T)
+plot(world, col = 'gray', add = T)
+
+plot(world, col = 'gray')
+image(allcap_kde, asp = 1, col = col, breaks = brks, add = T)
+plot(world, col = 'gray', add = T)
 
 
 
@@ -626,7 +691,7 @@ plot(g, vertex.size=neighborhood_size(g)*10,
      rescale = FALSE)
 
 edge_density(g,loops=T)
-edge_n_gedge_density(g, loops=F)
+edge_density(g, loops=F)
 reciprocity(g)
 dyad_census(g) # Mutual, asymmetric, and nyll node pairs
 transitivity(g, type="global")  # net is treated as an undirected network
@@ -641,7 +706,7 @@ plot(g, vertex.size=deg*20,
      edge.width = E(g)$weight/10,
      rescale = FALSE)
 deg.dist <- degree_distribution(g, cumulative=T, mode="all")
-plot( x=0:max(deg), y=1-deg.dist, pch=19, cex=1.2, col="orange", 
+plot( x=1:length(deg.dist), y=1-deg.dist, pch=19, cex=1.2, col="orange", 
       xlab="Degree", ylab="Cumulative Frequency")
 
 kcore <- coreness(g)
