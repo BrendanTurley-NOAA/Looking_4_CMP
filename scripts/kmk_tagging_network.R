@@ -1,11 +1,3 @@
-### to do
-# 1 create larger groups for an adjacency matrix for use in migration code
-# 1a groups are Mexico, Texas, eastern Gulf, South Atlantic
-# 1b How to classify FL Keys and LA?
-# 2 run code and create sensitivity analyses to test assumptions
-# 3 plot density maps of release and recapture locations
-# 4 plot out lengths for release and recapture across years and locations
-
 
 # https://kateto.net/netscix2016.html
 
@@ -247,11 +239,39 @@ plot(g,
      layout = geo_layout, 
      rescale = FALSE, 
      edge.arrow.size = .3,
-     edge.arrow.width = 2,
+     edge.arrow.width = 1,
      edge.color = 'dodgerblue4',
      vertex.size = 50, 
      # vertex.label = components(g)$membership,
      edge.width = E(g)$weight,
+     edge.curved = 0.2,
+     main = "Geographic igraph Network", 
+     add = T)
+
+plot(world, col = 'gray')
+plot(g, 
+     layout = geo_layout, 
+     rescale = FALSE, 
+     edge.arrow.size = .3,
+     edge.arrow.width = 1,
+     edge.color = 'dodgerblue4',
+     vertex.size = degree(g)*2, 
+     # vertex.label = components(g)$membership,
+     # edge.width = E(g)$weight,
+     edge.curved = 0.2,
+     main = "Geographic igraph Network", 
+     add = T)
+
+plot(world, col = 'gray')
+plot(g, 
+     layout = geo_layout, 
+     rescale = FALSE, 
+     edge.arrow.size = .3,
+     edge.arrow.width = 1,
+     edge.color = 'dodgerblue4',
+     vertex.size = betweenness(g)/10, 
+     # vertex.label = components(g)$membership,
+     # edge.width = E(g)$weight,
      edge.curved = 0.2,
      main = "Geographic igraph Network", 
      add = T)
