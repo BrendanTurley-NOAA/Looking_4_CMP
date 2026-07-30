@@ -1,3 +1,7 @@
+### regional papers
+# https://www.sciencedirect.com/science/article/pii/S016578361730111X
+# https://academic.oup.com/icesjms/article/76/6/1748/5479986
+# https://academic.oup.com/icesjms/article/75/1/158/3958179
 
 library(dplyr)
 library(geosphere)
