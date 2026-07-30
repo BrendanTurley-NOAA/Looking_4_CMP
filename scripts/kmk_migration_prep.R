@@ -117,3 +117,12 @@ capture_sf <- capture_sf |> mutate(group_zone = paste(Group, Zone, sep = "_"))
 
 table(release_sf$group_zone)
 table(capture_sf$group_zone)
+
+
+from_df <- release_sf |> dplyr::select(id, group_zone) |>
+  st_drop_geometry() |> setNames(c('id','from'))
+to_df <- capture_sf |> dplyr::select(id, group_zone) |>
+  st_drop_geometry() |> setNames(c('id','to'))
+from_to <- merge(from_df, to_df, by = 'id')
+
+from_to |> dplyr::select(from, to) |> table() |> addmargins() |> as.data.frame.matrix()
