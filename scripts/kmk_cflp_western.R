@@ -1,4 +1,9 @@
 
+library(dplyr)
+library(fields)
+library(lubridate)
+library(viridisLite)
+
 ### look at TX and LA landings to look for a northward progression
 
 
@@ -9,10 +14,9 @@ gom_st <- c('FL', 'AL', 'MS', 'LA', 'TX')
 setwd("C:/Users/brendan.turley/Documents/CMP/data/cflp")
 
 #### read data and subset ####--------------------------------------------------
-cflp <- readRDS('CFLPkarnauskas.rds')
-# cflp_ne <- subset(cflp, LAND_YEAR<2024 & LAND_YEAR>1999 & CATCH_TYPE == 'CATCH') |>
-#   subset(REGION == 'NATL' & is.element(ST_ABRV, natl_st))
-cflp <- subset(cflp, LAND_YEAR<2024 & LAND_YEAR>1999 & CATCH_TYPE == 'CATCH') |>
+# cflp <- readRDS('CFLPkarnauskas.rds') # if used 2024 is not complete
+cflp <- readRDS('CFLPblake.rds')
+cflp <- subset(cflp, LAND_YEAR>1998 & CATCH_TYPE == 'CATCH') |>
   subset(REGION == 'GOM' & is.element(ST_ABRV, gom_st))
 gc()
 
@@ -49,11 +53,17 @@ cflp_hl$cnty_st <- paste(cflp_hl$CNTY_FIPS_NAME, cflp_hl$ST_ABRV)
 # distinct(cflp_hl, CNTY_FIPS_NAME, ST_ABRV) |> View()
 unique(cflp_hl$cnty_st) |> sort()
 
-aggregate(tot_kg ~ cnty_st + REGION, 
-          data = subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO' &
-                          REGION=='GOM'),
-          sum, na.rm = T) |>
-  arrange(desc(tot_kg))
+subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO' &
+         REGION=='GOM') |>
+  group_by(cnty_st) |>
+  summarise(
+    mean_val = mean(tot_kg, na.rm = TRUE),
+    sum_val  = sum(tot_kg, na.rm = TRUE),
+    n = n()
+  )  |>
+  arrange(desc(n)) |>
+  print(n=100)
+
 aggregate(tot_kg ~ cnty_st + LAND_YEAR, 
           data = subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO' &
                           REGION=='GOM'),
@@ -61,9 +71,10 @@ aggregate(tot_kg ~ cnty_st + LAND_YEAR,
   group_by(cnty_st) |>
   summarise(totkg_med = median(tot_kg, na.rm = T),
             totkg_sum = sum(tot_kg, na.rm = T),
-            totkg_sd = sd(tot_kg, na.rm = T)) |>
+            totkg_sd = sd(tot_kg, na.rm = T),
+            n = n()) |>
   arrange(desc(totkg_sum)) |>
-  print(n=70)
+  print(n=100)
 
 
 kmk_yr_m <- aggregate(tot_kg ~ cnty_st + LAND_YEAR, 
@@ -92,30 +103,41 @@ distinct(tx_kmk, CNTY_FIPS_NAME, ST_ABRV) |> View()
 par(mfrow = c(2,2))
 aggregate(tot_kg ~ LAND_MONTH,
           data = tx_kmk,
-          sum, na.rm = T) |> plot(typ = 'o')
+          sum, na.rm = T) |>
+  mutate(proportion = tot_kg/sum(tot_kg, na.rm = T)) |>
+  select(-tot_kg) |>
+  plot(typ='s', las = 1)
 aggregate(tot_kg ~ LAND_MONTH,
           data = tx_kmk,
-          median, na.rm = T) |> plot(typ = 'o')
+          median, na.rm = T) |> 
+  plot(typ='s', las = 1)
 aggregate(tot_kg ~ LAND_MONTH,
           data = tx_kmk,
-          mean, na.rm = T) |> plot(typ = 'o')
+          mean, na.rm = T) |> 
+  plot(typ='s', las = 1)
 aggregate(tot_kg ~ LAND_MONTH,
           data = tx_kmk,
-          sd, na.rm = T) |> plot(typ = 'o')
-par(mfrow = c(2,2))
-aggregate(tot_kg ~ LAND_YEAR,
-          data = tx_kmk,
-          sum, na.rm = T) |> plot(typ = 'o')
-aggregate(tot_kg ~ LAND_YEAR,
-          data = tx_kmk,
-          median, na.rm = T) |> plot(typ = 'o')
-aggregate(tot_kg ~ LAND_YEAR,
-          data = tx_kmk,
-          mean, na.rm = T) |> plot(typ = 'o')
-aggregate(tot_kg ~ LAND_YEAR,
-          data = tx_kmk,
-          sd, na.rm = T) |> plot(typ = 'o')
+          sd, na.rm = T) |>
+  plot(typ='s', las = 1)
 
+
+par(mfrow = c(2,2))
+with(aggregate(tot_kg ~ LAND_YEAR,
+               data = tx_kmk,
+               sum, na.rm = T), 
+     barplot(tot_kg, names = LAND_YEAR, las = 2))
+with(aggregate(tot_kg ~ LAND_YEAR,
+               data = tx_kmk,
+               median, na.rm = T), 
+     barplot(tot_kg, names = LAND_YEAR, las = 2))
+with(aggregate(tot_kg ~ LAND_YEAR,
+               data = tx_kmk,
+               mean, na.rm = T), 
+     barplot(tot_kg, names = LAND_YEAR, las = 2))
+with(aggregate(tot_kg ~ LAND_YEAR,
+          data = tx_kmk,
+          sd, na.rm = T), 
+     barplot(tot_kg, names = LAND_YEAR, las = 2))
 # aggregate(tot_kg ~ cnty_st + LAND_MONTH,
 #           data = tx_kmk,
 #           median, na.rm = T) |> View()
@@ -149,7 +171,7 @@ dev.off()
 
 tx_mth <- aggregate(tot_kg ~ CNTY_FIPS_NAME + LAND_MONTH,
                     data = tx_kmk,
-                    median, na.rm = T)
+                    sum, na.rm = T)
 
 setwd("~/R_projects/Looking_4_CMP/figs")
 # png('kmk_tx_cnty_mth.png', width = 5, height = 12, units = 'in', res = 300)
@@ -166,28 +188,316 @@ for(i in 1:length(tx_cnty_seq)){
 dev.off()
 
 
+#################################################################
+### turn into a heatmap with month on x-axis and county on y-axis
+#################################################################
+
+tx_cnty_seq <- c('CAMERON','NUECES','BRAZORIA', 'GALVESTON', 'HARRIS') |> rev()
+### remove:  'WILLACY', 'SAN PATRICIO','CALHOUN', 'CHAMBERS'
+tx_kmk <- subset(cflp_hl, ST_ABRV=='TX' &  
+                   COMMON_NAME=='MACKERELS, KING AND CERO' &
+                   REGION=='GOM')
+
+tx_mth_kg <- aggregate(tot_kg ~ CNTY_FIPS_NAME + LAND_MONTH,
+                    data = tx_kmk,
+                    sum, na.rm = T)
+tx_mth_cpue <- aggregate(cpue ~ CNTY_FIPS_NAME + LAND_MONTH,
+                    data = tx_kmk,
+                    mean, na.rm = T)
+tx_kg <- tx_cpue <- matrix(NA, 12, length(tx_cnty_seq))
+for(i in 1:length(tx_cnty_seq)){
+  tmp1 <- subset(tx_mth_kg, CNTY_FIPS_NAME==tx_cnty_seq[i]) |> 
+    merge(data.frame(LAND_MONTH = 1:12), all = T)
+  tmp2 <- subset(tx_mth_cpue, CNTY_FIPS_NAME==tx_cnty_seq[i]) |> 
+    merge(data.frame(LAND_MONTH = 1:12), all = T)
+  
+  tx_kg[,i] <- tmp1$tot_kg
+  tx_cpue[,i] <- tmp2$cpue
+
+}
+# tx_kg[which(is.na(tx_kg))] <- 0
+# tx_cpue[which(is.na(tx_cpue))] <- 0
+tx_kg_p <- sweep(tx_kg, 2, colSums(tx_kg, na.rm=T), `/`)
+tx_cpue_p <- sweep(tx_cpue, 2, colSums(tx_cpue, na.rm=T), `/`)
+
+setwd("~/R_projects/Looking_4_CMP/figs")
+png('kmk_tx_cnty_hm_kg.png', width = 5, height = 9, units = 'in', res = 300)
+par(mar = c(8,3,2,1))
+imagePlot(1:length(tx_cnty_seq),1:12,
+          t(tx_kg_p[,ncol(tx_kg_p):1]), 
+          xaxt='n',yaxt='n',xlab = '',ylab = '',
+          col=mako(100,direction=-1))
+axis(2, 1:12, month.abb[1:12],las=2)
+axis(1, 1:length(tx_cnty_seq),rev(tx_cnty_seq),las=2)
+mtext('TX Proportion of total monthly landings')
+dev.off()
+
+setwd("~/R_projects/Looking_4_CMP/figs")
+png('kmk_tx_cnty_hm_cpue.png', width = 5, height = 9, units = 'in', res = 300)
+par(mar = c(8,3,2,1))
+imagePlot(1:length(tx_cnty_seq),1:12,
+          t(tx_cpue_p[,ncol(tx_cpue_p):1]),
+          xaxt='n',yaxt='n',xlab = '',ylab = '',
+          col=rocket(100,direction=-1))
+axis(2, 1:12, month.abb[1:12],las=2)
+axis(1, 1:length(tx_cnty_seq),rev(tx_cnty_seq),las=2)
+mtext('TX Proportion of mean CPUE')
+dev.off()
+
+tx_yr_kg <- aggregate(tot_kg ~ CNTY_FIPS_NAME + LAND_YEAR,
+                      data = tx_kmk,
+                      sum, na.rm = T)
+tx_yr_cpue <- aggregate(cpue ~ CNTY_FIPS_NAME + LAND_YEAR,
+                        data = tx_kmk,
+                        mean, na.rm = T)
+tx_kg <- tx_cpue <- matrix(NA, length(1999:2024), length(tx_cnty_seq))
+for(i in 1:length(tx_cnty_seq)){
+  tmp1 <- subset(tx_yr_kg, CNTY_FIPS_NAME==tx_cnty_seq[i]) |> 
+    merge(data.frame(LAND_YEAR = 1999:2024), all = T)
+  tmp2 <- subset(tx_yr_cpue, CNTY_FIPS_NAME==tx_cnty_seq[i]) |> 
+    merge(data.frame(LAND_YEAR = 1999:2024), all = T)
+  
+  tx_kg[,i] <- tmp1$tot_kg
+  tx_cpue[,i] <- tmp2$cpue
+  
+}
+tx_kg_p <- sweep(tx_kg, 2, colSums(tx_kg, na.rm=T), `/`)
+tx_cpue_p <- sweep(tx_cpue, 2, colSums(tx_cpue, na.rm=T), `/`)
+
+
+par(mar = c(9,3,2,1))
+image(1:length(tx_cnty_seq),1999:2024,t(tx_cpue_p[,ncol(tx_cpue_p):1]), xaxt='n',yaxt='n',xlab = '',ylab = '',
+      col=rocket(100,direction=-1))
+axis(2, 1999:2024, las=2)
+axis(1, 1:length(tx_cnty_seq),rev(tx_cnty_seq),las=2)
+mtext('LA Proportion of mean CPUE')
+
+image(1:length(tx_cnty_seq),1999:2024,t(tx_kg_p[,ncol(tx_kg_p):1]), xaxt='n',yaxt='n',xlab = '',ylab = '',
+      col=rocket(100,direction=-1))
+axis(2, 1999:2024, las=2)
+axis(1, 1:length(tx_cnty_seq),rev(tx_cnty_seq),las=2)
+mtext('LA Proportion of total monthly landings')
+
+
+
+
+
+la_cnty_seq <- c('CAMERON', 'VERMILION', 
+                 'TERREBONNE', 'LAFOURCHE', 
+                 'JEFFERSON', 'PLAQUEMINES') |> rev()
+### removed: 'CALCASIEU','JEFFERSON DAVIS', 'LAFAYETTE','IBERIA', 'ST MARY', 'IBERVILLE','ORLEANS','ST BERNARD',
+la_kmk <- subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO' &
+                   REGION=='GOM') |>
+  subset(ST_ABRV=='LA' & is.element(CNTY_FIPS_NAME, la_cnty_seq))
+la_mth_kg <- aggregate(tot_kg ~ CNTY_FIPS_NAME + LAND_MONTH,
+                       data = la_kmk,
+                       sum, na.rm = T)
+la_mth_cpue <- aggregate(cpue ~ CNTY_FIPS_NAME + LAND_MONTH,
+                         data = la_kmk,
+                         mean, na.rm = T)
+la_kg <- la_cpue <- matrix(NA, 12, length(la_cnty_seq))
+for(i in 1:length(la_cnty_seq)){
+  tmp1 <- subset(la_mth_kg, CNTY_FIPS_NAME==la_cnty_seq[i]) |> 
+    merge(data.frame(LAND_MONTH = 1:12), all = T)
+  tmp2 <- subset(la_mth_cpue, CNTY_FIPS_NAME==la_cnty_seq[i]) |> 
+    merge(data.frame(LAND_MONTH = 1:12), all = T)
+  
+  la_kg[,i] <- tmp1$tot_kg
+  la_cpue[,i] <- tmp2$cpue
+  
+}
+la_kg_p <- sweep(la_kg, 2, colSums(la_kg, na.rm=T), `/`)
+la_cpue_p <- sweep(la_cpue, 2, colSums(la_cpue, na.rm=T), `/`)
+
+
+setwd("~/R_projects/Looking_4_CMP/figs")
+png('kmk_la_cnty_hm_cpue.png', width = 6, height = 9, units = 'in', res = 300)
+par(mar = c(8,3,2,1))
+imagePlot(1:length(la_cnty_seq),1:12,
+          t(la_cpue_p[,ncol(la_cpue_p):1]),
+          xaxt='n',yaxt='n',xlab = '',ylab = '',
+      col=rocket(100,direction=-1))
+axis(2, 1:12, month.abb[1:12],las=2)
+axis(1, 1:length(la_cnty_seq),rev(la_cnty_seq),las=2)
+mtext('LA Proportion of mean CPUE')
+dev.off()
+
+setwd("~/R_projects/Looking_4_CMP/figs")
+png('kmk_la_cnty_hm_kg.png', width = 6, height = 9, units = 'in', res = 300)
+par(mar = c(8,3,2,1))
+imagePlot(1:length(la_cnty_seq),1:12,
+          t(la_kg_p[,ncol(la_kg_p):1]), 
+          xaxt='n',yaxt='n',xlab = '',ylab = '',
+          col=mako(100,direction=-1))
+axis(2, 1:12, month.abb[1:12],las=2)
+axis(1, 1:length(la_cnty_seq),rev(la_cnty_seq),las=2)
+mtext('LA Proportion of total monthly landings')
+dev.off()
+
+
+
+la_yr_kg <- aggregate(tot_kg ~ CNTY_FIPS_NAME + LAND_YEAR,
+                       data = la_kmk,
+                       sum, na.rm = T)
+la_yr_cpue <- aggregate(cpue ~ CNTY_FIPS_NAME + LAND_YEAR,
+                         data = la_kmk,
+                         mean, na.rm = T)
+la_kg <- la_cpue <- matrix(NA, length(1999:2024), length(la_cnty_seq))
+for(i in 1:length(la_cnty_seq)){
+  tmp1 <- subset(la_yr_kg, CNTY_FIPS_NAME==la_cnty_seq[i]) |> 
+    merge(data.frame(LAND_YEAR = 1999:2024), all = T)
+  tmp2 <- subset(la_yr_cpue, CNTY_FIPS_NAME==la_cnty_seq[i]) |> 
+    merge(data.frame(LAND_YEAR = 1999:2024), all = T)
+  
+  la_kg[,i] <- tmp1$tot_kg
+  la_cpue[,i] <- tmp2$cpue
+  
+}
+la_kg_p <- sweep(la_kg, 2, colSums(la_kg, na.rm=T), `/`)
+la_cpue_p <- sweep(la_cpue, 2, colSums(la_cpue, na.rm=T), `/`)
+
+
+par(mar = c(9,3,2,1))
+image(1:length(la_cnty_seq),1999:2024,t(la_cpue_p[,ncol(la_cpue_p):1]), xaxt='n',yaxt='n',xlab = '',ylab = '',
+      col=rocket(100,direction=-1))
+axis(2, 1999:2024, las=2)
+axis(1, 1:length(la_cnty_seq),rev(la_cnty_seq),las=2)
+mtext('LA Proportion of mean CPUE')
+
+image(1:length(la_cnty_seq),1999:2024,t(la_kg_p[,ncol(la_kg_p):1]), xaxt='n',yaxt='n',xlab = '',ylab = '',
+      col=rocket(100,direction=-1))
+axis(2, 1999:2024, las=2)
+axis(1, 1:length(la_cnty_seq),rev(la_cnty_seq),las=2)
+mtext('LA Proportion of total monthly landings')
+
+
+
+
+
+
+
+### pull LA counties
+
+la_kmk <- subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO' &
+                   REGION=='GOM') |>
+  subset(ST_ABRV=='LA')
+# distinct(la_kmk, CNTY_FIPS_NAME, ST_ABRV) |> View()
+
+la_cnty_seq <- c('CAMERON', 'CALCASIEU','JEFFERSON DAVIS', 'VERMILION', 'LAFAYETTE',
+                 'IBERIA', 'ST MARY', 'IBERVILLE','TERREBONNE', 'LAFOURCHE', 
+                 'JEFFERSON', 'ORLEANS','ST BERNARD','PLAQUEMINES') |> rev()
+
+la_yr <- aggregate(tot_kg ~ CNTY_FIPS_NAME + LAND_YEAR,
+                   data = la_kmk,
+                   sum, na.rm = T)
+yrs <- unique(la_yr$LAND_YEAR) |> sort()
+
+setwd("~/R_projects/Looking_4_CMP/figs")
+# png('kmk_tx_cnty_yr.png', width = 5, height = 12, units = 'in', res = 300)
+# par(mfrow = c(9,1), mar = c(2,4,2,1))
+png('kmk_la_cnty_yr2.png', width = 14, height = 12, units = 'in', res = 300)
+par(mfcol = c(7,2), mar = c(2,4,2,1))
+for(i in 1:length(la_cnty_seq)){
+  tmp <- subset(la_yr, CNTY_FIPS_NAME==la_cnty_seq[i]) |> 
+    merge(data.frame(LAND_YEAR = yrs), all = T)
+  b <- barplot(tmp$tot_kg, names = yrs, las = 1)
+  abline(h=0)
+  text(b[24,], max(tmp$tot_kg, na.rm = T), la_cnty_seq[i], pos = 2, xpd = T)
+}
+dev.off()
+
+
+la_mth <- aggregate(tot_kg ~ CNTY_FIPS_NAME + LAND_MONTH,
+                    data = la_kmk,
+                    sum, na.rm = T)
+
+setwd("~/R_projects/Looking_4_CMP/figs")
+# png('kmk_tx_cnty_mth.png', width = 5, height = 12, units = 'in', res = 300)
+# par(mfrow = c(9,1), mar = c(2,4,2,1))
+png('kmk_la_cnty_mth2.png', width = 14, height = 12, units = 'in', res = 300)
+par(mfcol = c(7,2), mar = c(2,4,2,1))
+for(i in 1:length(la_cnty_seq)){
+  tmp <- subset(la_mth, CNTY_FIPS_NAME==la_cnty_seq[i]) |> 
+    merge(data.frame(LAND_MONTH = 1:12), all = T)
+  b <- barplot(tmp$tot_kg, names = 1:12, las = 1)
+  abline(h=0)
+  text(b[12,], max(tmp$tot_kg, na.rm = T), la_cnty_seq[i], pos = 2, xpd = T)
+}
+dev.off()
+
+
+aggregate(days_away_corrected ~ LAND_YEAR,
+          data = la_kmk,
+          sum, na.rm = T) |> plot(typ = 's')
+aggregate(NUMBER_OF_CREW  ~ LAND_YEAR,
+          data = la_kmk,
+          mean, na.rm = T) |> plot(typ = 's')
+
+aggregate(cpue ~ LAND_YEAR,
+          data = la_kmk,
+          mean, na.rm = T) |> plot(typ = 's')
+
+aggregate(SCHEDULE_NUMBER  ~ LAND_YEAR,
+          data = la_kmk,
+          function (x) length(unique(x))) |> plot(typ = 's')
+
+aggregate(DEPTH ~ LAND_YEAR,
+          data = la_kmk,
+          min, na.rm = T) |> plot(typ = 's')
+
+aggregate(DEPTH ~ LAND_YEAR,
+          data = la_kmk,
+          quantile, .5, na.rm = T) |> plot(typ = 's')
+
+boxplot(DEPTH ~ LAND_YEAR,data = la_kmk, outline = F)
+
+
+latx_kmk <- subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO' &
+                   REGION=='GOM') |>
+  subset(ST_ABRV=='LA' | ST_ABRV=='TX')
+latx_cnty_seq <- c('CAMERON TX', 'WILLACY TX', 'NUECES TX', 'SAN PATRICIO TX', 'CALHOUN TX',
+                   'BRAZORIA TX', 'GALVESTON TX', 'HARRIS TX', 'CHAMBERS TX',
+                   'CAMERON LA', 'CALCASIEU LA','JEFFERSON DAVIS LA', 'VERMILION LA', 'LAFAYETTE LA',
+                   'IBERIA LA', 'ST MARY LA', 'IBERVILLE LA','TERREBONNE LA', 'LAFOURCHE LA', 
+                   'JEFFERSON LA', 'ORLEANS LA','ST BERNARD LA','PLAQUEMINES LA') |> rev()
+latx_mth <- aggregate(cpue ~ cnty_st + LAND_MONTH,
+                      data = latx_kmk,
+                      sum, na.rm = T)
+
+par(mfrow = c(9,1), mar = c(2,3,2,1))
+for(i in 1:length(latx_cnty_seq)){
+  tmp <- subset(latx_mth, cnty_st==latx_cnty_seq[i]) |> 
+    merge(data.frame(LAND_MONTH = 1:12), all = T)
+  b <- barplot(tmp$cpue, names = 1:12, las = 1)
+  abline(h=0)
+  text(b[1,], max(tmp$cpue, na.rm = T)*.75, latx_cnty_seq[i])
+}
+
+
+barplot()
+
 aggregate(days_away_corrected ~ LAND_YEAR,
           data = tx_kmk,
-          sum, na.rm = T) |> plot(typ = 'o')
+          mean, na.rm = T) |> plot(typ = 's')
 aggregate(NUMBER_OF_CREW  ~ LAND_YEAR,
           data = tx_kmk,
-          mean, na.rm = T) |> plot(typ = 'o')
+          mean, na.rm = T) |> plot(typ = 's')
 
 aggregate(cpue ~ LAND_YEAR,
           data = tx_kmk,
-          mean, na.rm = T) |> plot(typ = 'o')
+          mean, na.rm = T) |> plot(typ = 's')
 
 aggregate(SCHEDULE_NUMBER  ~ LAND_YEAR,
           data = tx_kmk,
-          function (x) length(unique(x))) |> plot(typ = 'o')
+          function (x) length(unique(x))) |> plot(typ = 's')
 
 aggregate(DEPTH ~ LAND_YEAR,
           data = tx_kmk,
-          min, na.rm = T) |> plot(typ = 'o')
+          min, na.rm = T) |> plot(typ = 's')
 
 aggregate(DEPTH ~ LAND_YEAR,
           data = tx_kmk,
-          quantile, .05, na.rm = T) |> plot(typ = 'o')
+          quantile, .5, na.rm = T) |> plot(typ = 's')
 
 boxplot(DEPTH ~ LAND_YEAR,data = tx_kmk)
 
@@ -244,99 +554,5 @@ plot(spp_ts$LAND_YEAR, pc.cr$scores[,2], typ = 'b')
 
 
 
-### pull LA counties
 
-la_kmk <- subset(cflp_hl, COMMON_NAME=='MACKERELS, KING AND CERO' &
-                   REGION=='GOM') |>
-  subset(ST_ABRV=='LA')
-# distinct(la_kmk, CNTY_FIPS_NAME, ST_ABRV) |> View()
-
-la_cnty_seq <- c('CAMERON', 'CALCASIEU','JEFFERSON DAVIS', 'VERMILION', 'LAFAYETTE',
-                 'IBERIA', 'ST MARY', 'IBERVILLE','TERREBONNE', 'LAFOURCHE', 
-                 'JEFFERSON', 'ORLEANS','ST BERNARD','PLAQUEMINES') |> rev()
-
-la_yr <- aggregate(tot_kg ~ CNTY_FIPS_NAME + LAND_YEAR,
-                   data = la_kmk,
-                   sum, na.rm = T)
-yrs <- unique(la_yr$LAND_YEAR) |> sort()
-
-setwd("~/R_projects/Looking_4_CMP/figs")
-# png('kmk_tx_cnty_yr.png', width = 5, height = 12, units = 'in', res = 300)
-# par(mfrow = c(9,1), mar = c(2,4,2,1))
-png('kmk_la_cnty_yr2.png', width = 14, height = 12, units = 'in', res = 300)
-par(mfcol = c(7,2), mar = c(2,4,2,1))
-for(i in 1:length(la_cnty_seq)){
-  tmp <- subset(la_yr, CNTY_FIPS_NAME==la_cnty_seq[i]) |> 
-    merge(data.frame(LAND_YEAR = yrs), all = T)
-  b <- barplot(tmp$tot_kg, names = yrs, las = 1)
-  abline(h=0)
-  text(b[24,], max(tmp$tot_kg, na.rm = T), la_cnty_seq[i], pos = 2, xpd = T)
-}
-dev.off()
-
-
-la_mth <- aggregate(tot_kg ~ CNTY_FIPS_NAME + LAND_MONTH,
-                    data = la_kmk,
-                    median, na.rm = T)
-
-setwd("~/R_projects/Looking_4_CMP/figs")
-# png('kmk_tx_cnty_mth.png', width = 5, height = 12, units = 'in', res = 300)
-# par(mfrow = c(9,1), mar = c(2,4,2,1))
-png('kmk_la_cnty_mth2.png', width = 14, height = 12, units = 'in', res = 300)
-par(mfcol = c(7,2), mar = c(2,4,2,1))
-for(i in 1:length(la_cnty_seq)){
-  tmp <- subset(la_mth, CNTY_FIPS_NAME==la_cnty_seq[i]) |> 
-    merge(data.frame(LAND_MONTH = 1:12), all = T)
-  b <- barplot(tmp$tot_kg, names = 1:12, las = 1)
-  abline(h=0)
-  text(b[12,], max(tmp$tot_kg, na.rm = T), la_cnty_seq[i], pos = 2, xpd = T)
-}
-dev.off()
-
-
-aggregate(days_away_corrected ~ LAND_YEAR,
-          data = la_kmk,
-          sum, na.rm = T) |> plot(typ = 'o')
-aggregate(NUMBER_OF_CREW  ~ LAND_YEAR,
-          data = la_kmk,
-          mean, na.rm = T) |> plot(typ = 'o')
-
-aggregate(cpue ~ LAND_YEAR,
-          data = la_kmk,
-          mean, na.rm = T) |> plot(typ = 'o')
-
-aggregate(SCHEDULE_NUMBER  ~ LAND_YEAR,
-          data = la_kmk,
-          function (x) length(unique(x))) |> plot(typ = 'o')
-
-aggregate(DEPTH ~ LAND_YEAR,
-          data = la_kmk,
-          min, na.rm = T) |> plot(typ = 'o')
-
-aggregate(DEPTH ~ LAND_YEAR,
-          data = la_kmk,
-          quantile, .05, na.rm = T) |> plot(typ = 'o')
-
-boxplot(DEPTH ~ LAND_YEAR,data = la_kmk)
-
-
-latx_cnty_seq <- c('CAMERON TX', 'WILLACY TX', 'NUECES TX', 'SAN PATRICIO TX', 'CALHOUN TX',
-                   'BRAZORIA TX', 'GALVESTON TX', 'HARRIS TX', 'CHAMBERS TX',
-                   'CAMERON LA', 'CALCASIEU LA','JEFFERSON DAVIS LA', 'VERMILION LA', 'LAFAYETTE LA',
-                   'IBERIA LA', 'ST MARY LA', 'IBERVILLE LA','TERREBONNE LA', 'LAFOURCHE LA', 
-                   'JEFFERSON LA', 'ORLEANS LA','ST BERNARD LA','PLAQUEMINES LA') |> rev()
-latx_mth <- aggregate(tot_kg ~ cnty_st + LAND_MONTH,
-                      data = latx_kmk,
-                      median, na.rm = T)
-
-par(mfrow = c(9,1), mar = c(2,3,2,1))
-for(i in 1:length(latx_cnty_seq)){
-  tmp <- subset(latx_mth, cnty_st==latx_cnty_seq[i]) |> 
-    merge(data.frame(LAND_MONTH = 1:12), all = T)
-  b <- barplot(tmp$tot_kg, names = 1:12, las = 1)
-  abline(h=0)
-  text(b[1,], max(tmp$tot_kg, na.rm = T)*.75, latx_cnty_seq[i])
-}
-
-barplot()
 

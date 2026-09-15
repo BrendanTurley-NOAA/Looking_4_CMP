@@ -10,6 +10,7 @@ library(mgcv)
 library(NISTunits)
 library(scales)
 library(units)
+library(randomForest)
 
 
 ### KMK sdm using seamap trawl data
@@ -40,7 +41,7 @@ lthfreq_kmk <- subset(lthfreq, BGSID %in% unique(catch_kmk$BGSID))
 
 sta_kmk <- subset(sta, STATIONID %in% unique(catch_kmk$STATIONID))
 sta_kmk0 <- subset(sta, is.element(CRUISEID, sta_kmk$CRUISEID))
-sta_kmk0 <- sta_kmk0[-which(is.element(sta_kmk0$STATIONID, sta_kmk$STATIONID)),]
+sta_kmk0.1 <- sta_kmk0[-which(is.element(sta_kmk0$STATIONID, sta_kmk$STATIONID)),]
 
 ### only shrimp trawl gear size 40
 gear_sta_id <- subset(invrec, GEAR_SIZE==40 & GEAR_TYPE=='ST', select = 'STATIONID')
@@ -51,8 +52,8 @@ sta_kmk0 <- subset(sta_kmk0, STATIONID %in% unique(gear_sta_id$STATIONID))
 plot(sta_kmk0$DECSLON,sta_kmk0$DECSLAT, asp = 1, col = 2, pch = 3)
 points(sta_kmk$DECSLON,sta_kmk$DECSLAT, col = 1)
 
-hist(year(sta_kmk$ymd))
-hist(year(sta_kmk0$ymd))
+hist(year(sta_kmk$ymd), breaks = seq(1982.5,2024.5,1))
+hist(year(sta_kmk0$ymd), breaks = seq(1982.5,2024.5,1))
 
 
 ### pull location (lon/lat), date-time, cruise, vessel, kmk # and weight, depth, sst, chl, sbt, wind sp and dir, wave ht and dir, air temp, air press
@@ -184,6 +185,26 @@ remove0 <- function(x, col = c('hrs_fish','dist_fish','effort_km2','depth')) {
 all_merge <- remove0(all_merge)
 all0_merge <- remove0(all0_merge)
 
+### outlier removal function
+
+outlier_rm <- function(x, col = c('depth', 'WIND_SPD',
+                                  # 'CHLORSURF', 'CHLORMAX',
+                                  'OXYSURF', 'OXYMAX')) {
+  x <- drop_units(x)
+  for(i in 1:length(col)){
+    tmp <- x[,col[i]]
+    out_thres <- quantile(tmp, .999, na.rm = T)
+    ind <- which(tmp>out_thres | is.na(tmp))
+    if(length(ind)>0){
+      x <- x[-ind, ]
+    }
+  }
+  x
+}
+
+all_merge_t <- outlier_rm(all_merge)
+
+
 ### use the operation code in invrec and haulvalue in starec to filter for quality
 ### things to poder:
 # 1 which location data to use (start, stop, ctd); take midpoint of start and stop of tow
@@ -205,7 +226,7 @@ kmk_pos$npue2 <- kmk_pos$CNTEXP / kmk_pos$hrs_fish #|> drop_units()
 kmk_pos$jday <- kmk_pos$start_utc |> yday()
 kmk_pos$TIME_MIL <- sprintf('%04d', kmk_pos$TIME_MIL)
 kmk_pos$hour <- paste0(substr(kmk_pos$TIME_MIL,1,2),':',substr(kmk_pos$TIME_MIL,3,4)) |>
-  hm() |> hour()
+  hm() |> lubridate::hour()
 kmk_pos$year <- year(kmk_pos$start_utc) |> as.factor()
 kmk_pos$month <- month(kmk_pos$start_utc) |> as.factor()
 
@@ -219,22 +240,23 @@ hist(kmk_pos$start_utc |> year())
 
 kmk_pos <- subset(kmk_pos, lon<=(-88))
 
-cpue_model <- gam(
-  cpue2 ~ s(TEMPSURF) + 
+cpue_model1 <- gam(
+  cpue2 ~ s(TEMPSURF,k=6) + 
     # s(TEMP_BOT) +
-    s(SALSURF) + 
+    s(SALSURF,k=6) + 
     # s(SALMAX) + 
-    s(CHLORSURF) + 
+    s(CHLORSURF,k=6) + 
     # s(CHLORMAX) + 
-    s(OXYSURF) + 
+    s(OXYSURF,k=6) + 
     # s(OXYMAX) + 
-    s(WIND_SPD) +
-    s(depth) +
-    te(lon, lat) +               # 2D spatial smooth; alt: s(lon, lat)
+    s(WIND_SPD,k=6) +
+    s(depth,k=6) +
+    te(lon, lat, k=6) +               # 2D spatial smooth; alt: s(lon, lat)
     # s(lon, lat, bs = 'sos') +
-    s(hour, bs = "cc") +        # Cyclic smooth for hour of day (wraps around)
-    # s(jday, bs = "cc") +        # Cyclic smooth for Julian day (wraps around)
-    month +
+    # s(hour, bs = "cc", k=6) +        # Cyclic smooth for hour of day (wraps around)
+    s(hour, bs = "cc", k=6) +        # Cyclic smooth for hour of day (wraps around)
+    s(jday, bs = "cc", k=6) +        # Cyclic smooth for Julian day (wraps around)
+    # month +
     year, # Year treated as a factor/fixed effect
     # s(year),            
   data = kmk_pos,            # Replace with your dataset name
@@ -242,11 +264,11 @@ cpue_model <- gam(
   family = tw(), # Tweedie distribution (ideal for zero-inflated CPUE)
   method = "REML"                    # Restricted Maximum Likelihood (highly recommended)
 )
-summary(cpue_model)
-AIC(cpue_model)
-gam.check(cpue_model, old.style=F, type=c("response"))
-plot(cpue_model, pages=1, scale=F, shade=T, seWithMean=T,scheme=2)
-vis.gam(cpue_model, view = c('lon','lat'), plot.type = 'contour', lp = 1, #type = 'response',
+summary(cpue_model1)
+AIC(cpue_model1)
+gam.check(cpue_model1, old.style=F, type=c("response"))
+plot(cpue_model1, pages=1, scale=F, shade=T, seWithMean=T,scheme=2,rug=T,residuals=F)
+vis.gam(cpue_model1, view = c('lon','lat'), plot.type = 'contour', lp = 1, #type = 'response',
         n.grid = 100, too.far = 0.05, color = "heat", asp = 1)
 points(kmk_pos$lon, kmk_pos$lat, pch = '.')
 
@@ -264,7 +286,7 @@ kmk_neg$npue2 <- kmk_neg$CNTEXP / kmk_neg$hrs_fish #|> drop_units()
 kmk_neg$jday <- kmk_neg$start_utc |> yday()
 kmk_neg$TIME_MIL <- sprintf('%04d', kmk_neg$TIME_MIL)
 kmk_neg$hour <- paste0(substr(kmk_neg$TIME_MIL,1,2),':',substr(kmk_neg$TIME_MIL,3,4)) |>
-  hm() |> hour()
+  hm() |> lubridate::hour()
 kmk_neg$year <- year(kmk_neg$start_utc) |> as.factor()
 kmk_neg$month <- month(kmk_neg$start_utc) |> as.factor()
 
@@ -275,11 +297,12 @@ hist(kmk_neg$start_utc |> year())
 
 kmk_neg <- subset(kmk_neg, lon<=(-88))
 
-### compbined
-kmk_com <- rbind(kmk_pos, kmk_neg)
+### combined
+sub <- sample(1:nrow(kmk_neg),nrow(kmk_neg)*.1)
+kmk_com <- rbind(kmk_pos, kmk_neg[sub,])
 
-cpue_model <- gam(
-  cpue ~ s(TEMPSURF) + 
+cpue_model2 <- gam(
+  cpue2 ~ s(TEMPSURF) + 
     # s(TEMP_BOT) +
     s(SALSURF) + 
     # s(SALMAX) + 
@@ -300,11 +323,11 @@ cpue_model <- gam(
   family = tw(), # Tweedie distribution (ideal for zero-inflated CPUE)
   method = "REML"                    # Restricted Maximum Likelihood (highly recommended)
 )
-summary(cpue_model)
-AIC(cpue_model)
-gam.check(cpue_model, old.style=F, type=c("response"))
-plot(cpue_model, pages=1, scale=F, shade=T, seWithMean=F, scheme=2)
-vis.gam(cpue_model, view = c('lon','lat'), plot.type = 'contour', lp = 1, #type = 'response',
+summary(cpue_model2)
+AIC(cpue_model2)
+gam.check(cpue_model2, old.style=F, type=c("response"))
+plot(cpue_model2, pages=1, scale=F, shade=T, seWithMean=F, scheme=2,rug=T,residuals=F)
+vis.gam(cpue_model2, view = c('lon','lat'), plot.type = 'contour', lp = 1, #type = 'response',
         n.grid = 100, too.far = 0.05, color = "heat", asp = 1)
 points(kmk_pos$lon, kmk_pos$lat, pch = '.')
 
@@ -315,6 +338,7 @@ points(kmk_pos$lon, kmk_pos$lat, pch = '.')
 # build SDM and compare to ECM, also compare to hypothetical species model
 ### https://esajournals.onlinelibrary.wiley.com/doi/10.1002/ecm.1486
 ### https://nsojournals.onlinelibrary.wiley.com/doi/10.1111/ecog.01388
+### https://www.sciencedirect.com/science/article/pii/S111098232600061X#s0140
 ### https://rangeshifter.github.io/software/rangeshiftr/
 ### https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.13076
 ### https://www.r-bloggers.com/2024/03/how-to-interpret-and-report-nonlinear-effects-from-generalized-additive-models/
@@ -324,8 +348,8 @@ points(kmk_pos$lon, kmk_pos$lat, pch = '.')
 ### https://github.com/helixcn/sdm_r_packages
 ### https://kevintshoemaker.github.io/NRES-746/GAMs_Lab.html
 ### https://noamross.github.io/gams-in-r-course/
+### https://ecocast-plus.github.io/operationalization/gulf/pelagic_longline.html
 
 ### sdmtbm
-### gbm
-### randomforest
+### gbm or xgboost
 
