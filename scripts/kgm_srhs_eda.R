@@ -45,9 +45,10 @@ for(i in c(27:24,28)){
   tmp <- subset(latx, area == i)
   tag <- aggregate(caught ~ month, data = tmp, sum, na.rm=T)
   boxplot(tmp$caught/tmp$anglers ~ tmp$month,
-          outline = F)
-  mtext(i)
-  barplot(tag$caught, names.arg = tag$month)
+          outline = F, ylab = 'CPUE (fish/angler)')
+  mtext(paste('SRHS Zone:',i))
+  barplot(tag$caught, names.arg = tag$month,
+          ylab = 'Total catch (fish)')
 }
 
 ### everything west of 92
@@ -59,8 +60,9 @@ for(i in lower){
   tmp <- subset(dat, lat.dec>i & lat.dec<i+1)
   tag <- aggregate(caught ~ month, data = tmp, sum, na.rm=T)
   boxplot(tmp$caught/tmp$anglers ~ tmp$month,
-          outline = F)
-  mtext(i)
-  barplot(tag$caught, names.arg = tag$month)
+          outline = F, ylab = 'CPUE (fish/angler)')
+  mtext(paste('Lat:',i,'-',i+1))
+  barplot(tag$caught, names.arg = tag$month,
+          ylab = 'Total catch (fish)')
   mtext(paste('n =',nrow(tmp)))
 }
