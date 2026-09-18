@@ -79,3 +79,72 @@ mtext('Southern GN')
 dev.off()
 
 subset(gn_land, South_Zone_GN > South_Zone_GN_Quota)
+
+
+
+#################
+#### updated ####
+#################
+
+library(readxl)
+
+setwd("C:/Users/brendan.turley/Documents/CMP/data")
+land <- read_xlsx('kmk_landings_sero_acl.xlsx', sheet = 2) |> as.data.frame()
+land$year1 <- 2024:2016
+
+gn_land <- read_xlsx('kmk_landings_sero_acl.xlsx', sheet = 3) |> as.data.frame()
+gn_land$year1 <- 2024:2012
+gn_land <- subset(gn_land, year1>=2016)
+
+
+par(mfrow = c(2,2), mar = c(4,4,1,1))
+plot(land$year1, land$WZ/1e6,
+     typ = 'l', lty = 1, lwd = 2,
+     ylim = c(0,1.4), xaxt = 'n', las = 1,
+     xlab = '', ylab = 'Landings (x1,000,000 lbs.)')
+grid()
+points(land$year1, land$`WZ Quota`/1e6,
+       typ = 'l', lty = 5, lwd = 2)
+with(subset(land, WZ > `WZ Quota`),
+     points(year1, WZ/1e6, col = 'red', pch = 17, cex = 2))
+axis(1, land$year1, land$Year, cex.axis = .7)
+mtext('Western HL')
+
+legend('bottomleft', c('Sector ACL', "Commercial Landings", 'Overages'),
+       col = c(1,1,'red'), lty = c(5,1,NA), pch = c(NA, NA, 17), bty = 'n')
+
+plot(land$year1, land$NZ/1e6,
+     typ = 'l', lty = 1, lwd = 2,
+     ylim = c(0,1.4), xaxt = 'n', las = 1,
+     xlab = '', ylab = '')
+grid()
+points(land$year1, land$`NZ Quota`/1e6,
+       typ = 'l', lty = 5, lwd = 2)
+with(subset(land, NZ > `NZ Quota`),
+     points(year1, NZ/1e6, col = 'red', pch = 17, cex = 2))
+axis(1, land$year1, land$Year, cex.axis = .7)
+mtext('Northern HL')
+
+plot(land$year1, land$SZ/1e6,
+     typ = 'l', lty = 1, lwd = 2,
+     ylim = c(0,1.4), xaxt = 'n', las = 1,
+     xlab = '', ylab = 'Landings (x1,000,000 lbs.)')
+grid()
+points(land$year1, land$`SZ Quota`/1e6,
+       typ = 'l', lty = 5, lwd = 2)
+with(subset(land, SZ > `SZ Quota`),
+     points(year1, SZ/1e6, col = 'red', pch = 17, cex = 2))
+axis(1, land$year1, land$Year, cex.axis = .7)
+mtext('Southern HL')
+
+plot(gn_land$year1, gn_land$`Total Reported`/1e6,
+     typ = 'l', lty = 1, lwd = 2,
+     ylim = c(0,1.4), xaxt = 'n', las = 1,
+     xlab = '', ylab = '')
+grid()
+points(gn_land$year1, gn_land$`Quota`/1e6,
+       typ = 'l', lty = 5, lwd = 2)
+with(subset(gn_land, `Total Reported` > `Quota`),
+     points(year1, `Total Reported`/1e6, col = 'red', pch = 17, cex = 2))
+axis(1, land$year1, land$Year, cex.axis = .7)
+mtext('Southern GN')

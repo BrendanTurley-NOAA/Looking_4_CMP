@@ -1,10 +1,10 @@
 
 library(MARSS)
 library(readxl)
+library(units)
 
 
-setwd("C:/Users/brendan.turley/Downloads")
-
+setwd("~/CMP/data/landings")
 
 us <- read.csv('sedar99-us-com-landings.csv', skip=1)
 us$Gillnet..ww.lbs. <- gsub(',','',us$Gillnet..ww.lbs.) |> as.numeric()
@@ -33,11 +33,23 @@ mx_sub <- mx_sub[,-4]
 mx_us <- merge(mx_sub,us_sub,by='year')
 mx_us_std <- scale(mx_us[,2:5])
 
-par(mfrow=c(2,3))
-for(i in 1:4){
-  plot(mx_us$year, mx_us_std[,i], typ = 'o',
-       panel.first = abline(h=0,lty=5))
+par(mfrow=c(2,1))
+plot(mx_us$year,mx_us$mx_gn, typ = 'o', col = 1, lwd = 2, pch = 16,
+     panel.first = abline(h=0,lty=5),
+     ylim = c(0,max(mx_us[,2:5],na.rm=T)))
+for(i in 3:5){
+  points(mx_us$year, mx_us[,i], typ = 'o',col = i-1, lwd = 2, pch = 16)
 }
+abline(v=c(2015,2020))
+
+plot(mx_us$year,mx_us_std[,1], typ = 'o', col = 1, lwd = 2, pch = 16,
+     panel.first = abline(h=0,lty=5),
+     ylim = range(mx_us_std,na.rm=T))
+for(i in 2:5){
+  points(mx_us$year, mx_us_std[,i], typ = 'o',col = i, lwd = 2, pch = 16) 
+}
+abline(v=c(2015,2020))
+
 
 
 # https://atsa-es.github.io/atsa-labs/sec-dfa.html

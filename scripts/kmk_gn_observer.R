@@ -17,17 +17,21 @@ fl_shp <- vect('Florida_Shoreline__1_to_40_2C000_Scale_.shp')
 ### load observer data
 setwd("C:/Users/brendan.turley/Documents/data/Fishery_observer_data/GillnetExtraction for Coastal Pelagics20240924044848/Gillnet Request (09_24_24)/Gillnet Request (09_24_24)")
 
-trip <- read_excel('TRIP_SUMMARY.xlsx')
+trip <- read_excel('TRIP_SUMMARY.xlsx') |>
+  subset(REGION_DESC=='GULF OF MEXICO')
 
-haul <- read_excel('HAUL_LOG.xlsx')
+haul <- read_excel('HAUL_LOG.xlsx') |>
+  subset(TRIP_ID %in% trip$TRIP_ID)
 haul <- utils::type.convert(haul)
 
-catch <- read_excel('CATCH_LOG.xlsx')
-
-gear <- read_excel('GEAR_LOG.xlsx')
-panel <- read_excel('PANEL_LOG.xlsx')
-
-animal <- read_excel('ANIMAL_LOG.xlsx')
+catch <- read_excel('CATCH_LOG.xlsx') |>
+  subset(TRIP_ID %in% trip$TRIP_ID)
+gear <- read_excel('GEAR_LOG.xlsx') |>
+  subset(TRIP_ID %in% trip$TRIP_ID)
+panel <- read_excel('PANEL_LOG.xlsx') |>
+  subset(TRIP_ID %in% trip$TRIP_ID)
+animal <- read_excel('ANIMAL_LOG.xlsx') |>
+  subset(TRIP_ID %in% trip$TRIP_ID)
 
 
 ### subset for KMK hauls and pull unique trip IDs
@@ -79,17 +83,17 @@ plot(as.numeric(kmk_h$WIND_DIRECTION_DEG), kmk_h$WIND_SPEED_KTS)
 ### was there a change in depth fished over time?
 plot(year(kmk_h$SET_BEGIN_DATE), -kmk_h$BOTTOM_DEPTH_FT)
 lines(lowess(year(kmk_h$SET_BEGIN_DATE), -kmk_h$BOTTOM_DEPTH_FT), col = 2, lwd = 2)
-lines(loess(-kmk_h$BOTTOM_DEPTH_FT ~ year(kmk_h$SET_BEGIN_DATE), na.action = 'na.exclude'), col = 4, lwd = 2)
+# lines(loess(-kmk_h$BOTTOM_DEPTH_FT ~ year(kmk_h$SET_BEGIN_DATE), na.action = 'na.exclude'), col = 4, lwd = 2)
 
 ### is fishing earlier or later over time?
 plot(year(kmk_h$SET_BEGIN_DATE), yday(kmk_h$SET_BEGIN_DATE))
 lines(lowess(year(kmk_h$SET_BEGIN_DATE), yday(kmk_h$SET_BEGIN_DATE)), col = 2, lwd = 2)
-lines(loess(yday(kmk_h$SET_BEGIN_DATE) ~ year(kmk_h$SET_BEGIN_DATE), na.action = 'na.exclude'), col = 4, lwd = 2)
+# lines(loess(yday(kmk_h$SET_BEGIN_DATE) ~ year(kmk_h$SET_BEGIN_DATE), na.action = 'na.exclude'), col = 4, lwd = 2)
 
 ### is water temperature changing over time?
 plot(year(kmk_h$SET_BEGIN_DATE), kmk_h$SET_BEGIN_TEMP)
 lines(lowess(year(kmk_h$SET_BEGIN_DATE), kmk_h$SET_BEGIN_TEMP), col = 2, lwd = 2)
-lines(loess(kmk_h$SET_BEGIN_TEMP ~ year(kmk_h$SET_BEGIN_DATE), na.action = 'na.exclude'), col = 4, lwd = 2)
+# lines(loess(kmk_h$SET_BEGIN_TEMP ~ year(kmk_h$SET_BEGIN_DATE), na.action = 'na.exclude'), col = 4, lwd = 2)
 
 
 ### kmk trip summary
@@ -142,11 +146,13 @@ kmk_c %>%
 group_by(SP_COMMON_NAME) %>%
   summarise_at(c('COUNT_00_30','COUNT_30_60','COUNT_60_90',
                  'COUNT_90_120','COUNT_120_150','COUNT_150_180',
-                 'COUNT_180_210','COUNT_210_240'), sum, na.rm = T)
+                 'COUNT_180_210','COUNT_210_240'), sum, na.rm = T) |>
+  print(n=100)
 
 kmk_c %>%
   group_by(SP_COMMON_NAME) %>%
-  summarise_at(c('NUMBER_CAUGHT'), sum, na.rm = T)
+  summarise_at(c('NUMBER_CAUGHT'), sum, na.rm = T) |>
+  print(n=100)
 
 
 aggregate(cbind(kmk_c$NUMBER_CAUGHT, kmk_c$TOTAL_NUM_KEPT, kmk_c$WEIGHT_LANDED),

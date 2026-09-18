@@ -108,16 +108,23 @@ summary(kk$depth)
 
 setwd("~/data/Fishery_observer_data/ReefExtraction for Coastal Pelagics (i.e. Trollin20240924044830")
 trolling <- read_xlsx('Trolling Reef Observer Program Request (09_24_24).xlsx')
-kmk_tr <- subset(trolling, COMMON_NAME=='MACKEREL, KING' & LAT_BEGIN_SET < 40)
+kmk_tr <- subset(trolling, COMMON_NAME=='MACKEREL, KING' & LAT_BEGIN_SET < 40) |>
+  subset(REGION=='GOM')
 lons <- range(kmk_tr$LON_BEGIN_SET)
 lats <- range(kmk_tr$LAT_BEGIN_SET)
 obs <- data.frame(lon = kmk_tr$LON_BEGIN_SET,
                   lat = kmk_tr$LAT_BEGIN_SET)
+hist(kmk_tr$FISHING_DEPTH_M)
+summary(kmk_tr$FISHING_DEPTH_M)
 
 plot(kmk_tr$LON_BEGIN_SET, kmk_tr$LAT_BEGIN_SET, asp = 1)
 
 bathy_data <- getNOAA.bathy(lon1 = lons[1], lon2 = lons[2], 
                             lat1 = lats[1], lat2 = lats[2], 
-                            resolution = 1)
+                            resolution = .1)
 
 matched_data <- get.depth(bathy_data, x = obs$lon, y = obs$lat, locator = F)
+hist(-matched_data$depth)
+summary(-matched_data$depth)
+hist(-matched_data$depth[which(!is.na(kmk_tr$FISHING_DEPTH_M))])
+summary(-matched_data$depth[which(!is.na(kmk_tr$FISHING_DEPTH_M))])

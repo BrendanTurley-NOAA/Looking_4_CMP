@@ -454,6 +454,36 @@ boxplot(dats$lth_mm_2 ~ dats$RECAPTURE_year)
 boxplot(dats$lth_mm_1 ~ dats$COUNTRY_ID_2)
 boxplot(dats$lth_mm_1 ~ dats$STATE_ID_2)
 
+
+par(mfrow=c(2,1))
+boxplot(dats$lth_mm_1 ~ dats$RELEASE_YEAR)
+boxplot(dats$lth_mm_2 ~ dats$RECAPTURE_year)
+par(mfrow=c(2,1))
+boxplot(dats$lth_mm_1 ~ dats$RELEASE_MONTH)
+boxplot(dats$lth_mm_2 ~ dats$RECAPTURE_MONTH)
+
+
+plot(dats$DAYS_AT_LARGE, dats$lth_mm_1)
+plot(dats$DAYS_AT_LARGE, dats$lth_mm_2)
+plot(dats$DAYS_AT_LARGE, dats$lth_mm_2-dats$lth_mm_1)
+abline(h=0)
+
+
+par(mfrow=c(2,1))
+boxplot(recaptures$lth_mm_1 ~ recaptures$RELEASE_YEAR)
+boxplot(recaptures$lth_mm_2 ~ recaptures$RECAPTURE_year)
+par(mfrow=c(2,1))
+boxplot(recaptures$lth_mm_1 ~ recaptures$RELEASE_MONTH)
+boxplot(recaptures$lth_mm_2 ~ recaptures$RECAPTURE_MONTH)
+
+
+plot(recaptures$DAYS_AT_LARGE, recaptures$lth_mm_1)
+plot(recaptures$DAYS_AT_LARGE, recaptures$lth_mm_2)
+plot(recaptures$DAYS_AT_LARGE, recaptures$lth_mm_2-recaptures$lth_mm_1)
+abline(h=0)
+
+
+
 contract(g,cop$membership) |> plot()
 
 # Decompose graph into connected components

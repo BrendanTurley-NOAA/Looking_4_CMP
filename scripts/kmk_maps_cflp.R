@@ -76,6 +76,7 @@ png('kmk_aquamap.png', width = 10, height = 9, units = 'in', res = 300)
 # plot(kmk_am, col = cols2)
 plot(kmk_am, col = cols2, 
      main = 'KMK probability of occurrence',
-     xlim = c(-100, -74.5), ylim = c(17.5, 36))
+     xlim = c(-100, -74.5), ylim = c(17.5, 36),
+     range=c(.75,1))
 plot(world, add = T, col = 'gray80')
 dev.off()
