@@ -21,7 +21,7 @@ gulf <- subset(cnty, STATEFP %in% stfps)
 
 
 ### identify coastal and coastal adjacent counties using NCCOS's ENOW dataset via Seann
-setwd(paste0(here(),'/',"data",'/',"ENOW_Sectors"))
+setwd("~/R_projects/Fishing-Community-Resilience/data/ENOW_Sectors")
 coast_ref <- read.csv('ENOW_Geography_Reference.csv') 
 coast_ref$County_Name[299] <- 'Multnomah'
 coast_ref$County_Name <- toupper(coast_ref$County_Name)

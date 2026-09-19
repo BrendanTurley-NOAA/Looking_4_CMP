@@ -92,11 +92,29 @@ setwd("C:/Users/brendan.turley/Documents/CMP/data")
 land <- read_xlsx('kmk_landings_sero_acl.xlsx', sheet = 2) |> as.data.frame()
 land$year1 <- 2024:2016
 
+(land$NZ[1]-land$NZ[9])/land$NZ[9]
+(land$SZ[1]-land$SZ[9])/land$SZ[9]
+(land$WZ[1]-land$WZ[9])/land$WZ[9]
+
 gn_land <- read_xlsx('kmk_landings_sero_acl.xlsx', sheet = 3) |> as.data.frame()
 gn_land$year1 <- 2024:2012
 gn_land <- subset(gn_land, year1>=2016)
 
+tot_land <- cbind(land[,2:4] |> rowSums(),
+      gn_land$`Total Reported`) |> rowSums()
+tot_quota <- cbind(land[,5:7] |> rowSums(),
+      gn_land$`Quota`) |> rowSums()
+(tot_land[1]-tot_land[9])/tot_land[9]
 
+plot(land$year1, tot_land/1e6, typ = 'l', lwd = 2, pch = 16,
+     panel.first = abline(h = 0, lty = 5), las = 1,
+     xlab = '', ylab = 'Landings (x1,000,000 lbs.)',
+     ylim = c(0, 4))
+points(land$year1, tot_quota/1e6, typ = 'l', lwd = 2, lty = 5)
+
+
+setwd("~/R_projects/misc-noaa-scripts/figs")
+png('zone_land_quota_update.png', width = 10, height = 7, units = 'in', res = 300)
 par(mfrow = c(2,2), mar = c(4,4,1,1))
 plot(land$year1, land$WZ/1e6,
      typ = 'l', lty = 1, lwd = 2,
@@ -109,9 +127,7 @@ with(subset(land, WZ > `WZ Quota`),
      points(year1, WZ/1e6, col = 'red', pch = 17, cex = 2))
 axis(1, land$year1, land$Year, cex.axis = .7)
 mtext('Western HL')
-
-legend('bottomleft', c('Sector ACL', "Commercial Landings", 'Overages'),
-       col = c(1,1,'red'), lty = c(5,1,NA), pch = c(NA, NA, 17), bty = 'n')
+abline(h = 0, lwd = 1.5)
 
 plot(land$year1, land$NZ/1e6,
      typ = 'l', lty = 1, lwd = 2,
@@ -124,6 +140,10 @@ with(subset(land, NZ > `NZ Quota`),
      points(year1, NZ/1e6, col = 'red', pch = 17, cex = 2))
 axis(1, land$year1, land$Year, cex.axis = .7)
 mtext('Northern HL')
+abline(h = 0, lwd = 1.5)
+
+legend('topright', c('Sector ACL', "Commercial Landings", 'Overages'),
+       col = c(1,1,'red'), lty = c(5,1,NA), pch = c(NA, NA, 17), bty = 'n')
 
 plot(land$year1, land$SZ/1e6,
      typ = 'l', lty = 1, lwd = 2,
@@ -136,6 +156,7 @@ with(subset(land, SZ > `SZ Quota`),
      points(year1, SZ/1e6, col = 'red', pch = 17, cex = 2))
 axis(1, land$year1, land$Year, cex.axis = .7)
 mtext('Southern HL')
+abline(h = 0, lwd = 1.5)
 
 plot(gn_land$year1, gn_land$`Total Reported`/1e6,
      typ = 'l', lty = 1, lwd = 2,
@@ -148,3 +169,6 @@ with(subset(gn_land, `Total Reported` > `Quota`),
      points(year1, `Total Reported`/1e6, col = 'red', pch = 17, cex = 2))
 axis(1, land$year1, land$Year, cex.axis = .7)
 mtext('Southern GN')
+abline(h = 0, lwd = 1.5)
+dev.off()
+
