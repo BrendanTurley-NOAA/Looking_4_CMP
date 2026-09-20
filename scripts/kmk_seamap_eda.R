@@ -230,9 +230,11 @@ kmk_pos$hour <- paste0(substr(kmk_pos$TIME_MIL,1,2),':',substr(kmk_pos$TIME_MIL,
 kmk_pos$year <- year(kmk_pos$start_utc) |> as.factor()
 kmk_pos$month <- month(kmk_pos$start_utc) |> as.factor()
 
-par(mfrow=c(2,1))
+par(mfrow=c(2,2))
 plot(kmk_pos$lon, kmk_pos$lat, cex = log10(kmk_pos$cpue), asp = 1, pch = 21, bg = alpha('gray20',.2))
+plot(kmk_pos$lon, kmk_pos$lat, cex = log10(kmk_pos$cpue2), asp = 1, pch = 21, bg = alpha('gray20',.2))
 plot(kmk_pos$lon, kmk_pos$lat, cex = log10(kmk_pos$npue), asp = 1, pch = 21, bg = alpha('gray20',.2))
+plot(kmk_pos$lon, kmk_pos$lat, cex = log10(kmk_pos$npue2), asp = 1, pch = 21, bg = alpha('gray20',.2))
 
 hist(kmk_pos$lon,breaks=seq(-100,-80,.1),xlim=c(-90,-85))
 hist(kmk_pos$start_utc |> month())
@@ -272,6 +274,35 @@ vis.gam(cpue_model1, view = c('lon','lat'), plot.type = 'contour', lp = 1, #type
         n.grid = 100, too.far = 0.05, color = "heat", asp = 1)
 points(kmk_pos$lon, kmk_pos$lat, pch = '.')
 
+
+cpue_model2 <- gam(
+  cpue2 ~ s(TEMPSURF,k=6) + 
+    s(TEMP_BOT) +
+    s(SALSURF,k=6) +
+    # s(SALMAX) + 
+    s(CHLORSURF,k=6) + 
+    # s(CHLORMAX) + 
+    # s(OXYSURF,k=6) + 
+    # s(OXYMAX) + 
+    # s(WIND_SPD,k=6) +
+    s(depth,k=6) +
+    # te(lon, lat, k=6) +               # 2D spatial smooth; alt: s(lon, lat)
+    # s(lon, lat, bs = 'sos') +
+    # s(hour, bs = "cc", k=6) +        # Cyclic smooth for hour of day (wraps around)
+    # s(hour, bs = "cc", k=6) +        # Cyclic smooth for hour of day (wraps around)
+    # s(jday, bs = "cc", k=6) +        # Cyclic smooth for Julian day (wraps around)
+    # month +
+    year, # Year treated as a factor/fixed effect
+  # s(year),            
+  data = kmk_pos,            # Replace with your dataset name
+  # family=gaussian(),
+  family = tw(), # Tweedie distribution (ideal for zero-inflated CPUE)
+  method = "REML"                    # Restricted Maximum Likelihood (highly recommended)
+)
+summary(cpue_model2)
+AIC(cpue_model2)
+gam.check(cpue_model2, old.style=F, type=c("response"))
+plot(cpue_model2, pages=1, scale=F, shade=T, seWithMean=T,scheme=2,rug=T,residuals=F)
 
 
 kmk_neg <- all0_merge |> 
