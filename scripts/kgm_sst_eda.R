@@ -5,6 +5,60 @@ library(cmocean)
 library(ncdf4)
 library(lubridate)
 library(terra)
+library(sf)
+
+# load shapefile to subset  --------------------------------
+### shapefiles downloaded from marineregions.org (future goal implement mregions2 R package for shapefile)
+setwd("~/data/shapefiles/gulf_eez")
+eez <- vect('eez.shp') |> makeValid()
+
+setwd("~/data/shapefiles/gulf_iho")
+iho <- vect('iho.shp') |> makeValid()
+iho_sf <- st_as_sf(iho)
+
+gulf_eez <- terra::intersect(eez, iho)
+
+rm(eez, iho)
+gc()
+
+### bathy for continential shape
+# setwd("C:/Users/brendan.turley/Documents/data/bathy")
+setwd("~/data/bathy")
+
+bdat <- nc_open('etopo1.nc')
+ln <- ncvar_get(bdat, 'lon')
+ln_i <- which(ln>=min_lon & ln<=max_lon)
+lt <- ncvar_get(bdat, 'lat')
+lt_i <- which(lt>=min_lat & lt<=max_lat)
+
+bathy <- ncvar_get(bdat, 'Band1',
+                   start = c(ln_i[1],lt_i[1]),
+                   count = c(length(ln_i), length(lt_i)))
+
+bathy2 <- rast('etopo1.nc')
+
+### isolate shelf
+bathy2[values(bathy2$Band1) > (0)] <- NA
+bathy2[values(bathy2$Band1) < (-100)] <- NA
+
+plot(bathy2,
+     main = 'Continential Shelf cutout')
+
+### set all values to 1; then make into shapefile
+bathy2[!is.na(values(bathy2$Band1))] <- 1
+bathys <- as.polygons(bathy2)
+
+bathy_c <- crop(bathys,
+                ext(iho_sf)) |>
+  st_as_sf() |>
+  st_transform(st_crs(iho_sf)) |>
+  st_simplify(dTolerance = 0)
+
+plot(bathy_c)
+
+kmk_shp <- st_intersection(bathy_c, iho_sf)
+plot(st_geometry(kmk_shp))
+
 
 ### load sst data and combine
 setwd("~/R_projects/ESR-indicator-scratch/data/intermediate_files")
@@ -19,31 +73,31 @@ max_lon <- -80
 min_lat <- 18
 max_lat <- 31
 
-for(i in styear:enyear){
-  cat(i, '\n')
-  tmp <- paste0('anom_',i) |> readRDS()
-  
-  tmp$anom[which(tmp$anom==-999)] <- NA
-  
-  if(i==styear){
-    sst_a <- tmp$anom
-    dates <- tmp$time
-  } else {
-    sst_a <- abind(sst_a,
-                   tmp$anom,
-                   along = 3)
-    dates <- c(dates,
-               tmp$time)
-  }
-}
-
-sst_a <- aperm(sst_a, c(2,1,3))
-sst_r <- rast(sst_a[dim(sst_a)[1]:1,,], crs="EPSG:4326") 
-ext(sst_r) <- c(min_lon, max_lon, min_lat, max_lat)
-time(sst_r) <- as.Date(dates)
-
-setwd("~/R_projects/Looking_4_CMP/data")
-writeCDF(sst_r, 'oisst_anom_wgulf.nc',overwrite=TRUE)
+# for(i in styear:enyear){
+#   cat(i, '\n')
+#   tmp <- paste0('anom_',i) |> readRDS()
+#   
+#   tmp$anom[which(tmp$anom==-999)] <- NA
+#   
+#   if(i==styear){
+#     sst_a <- tmp$anom
+#     dates <- tmp$time
+#   } else {
+#     sst_a <- abind(sst_a,
+#                    tmp$anom,
+#                    along = 3)
+#     dates <- c(dates,
+#                tmp$time)
+#   }
+# }
+# 
+# sst_a <- aperm(sst_a, c(2,1,3))
+# sst_r <- rast(sst_a[dim(sst_a)[1]:1,,], crs="EPSG:4326") 
+# ext(sst_r) <- c(min_lon, max_lon, min_lat, max_lat)
+# time(sst_r) <- as.Date(dates)
+# 
+# setwd("~/R_projects/Looking_4_CMP/data")
+# writeCDF(sst_r, 'oisst_anom_wgulf.nc',overwrite=TRUE)
 
 dat <- nc_open("oisst_anom_wgulf.nc")
 ssta <- ncvar_get(dat, "oisst_anom_wgulf")
@@ -72,6 +126,21 @@ neg_lat <- c(28, 30.5)
 
 wfl_lon <- c(-85, -81)
 wfl_lat <- c(24.5, 28)
+
+
+imagePlot(lon, rev(lat), 
+          apply(ssta,c(1,2), mean, na.rm = T)[,dim(ssta)[2]:1],
+          breaks = seq(-1.5,1.5,.1), 
+          col = cmocean('balance')(length(seq(-1.5,1.5,.1))-1),
+          asp = 1)
+contour(ln[ln_i],lt[lt_i],bathy, levels = -100, add=T, lwd = 2, col = 'gray40')
+rect(cb_lon[1], cb_lat[1], cb_lon[2], cb_lat[2], lwd = 2)
+rect(swg_lon[1], swg_lat[1], swg_lon[2], swg_lat[2], lwd = 2)
+rect(sg_lon[1], sg_lat[1], sg_lon[2], sg_lat[2], lwd = 2)
+rect(tx_lon[1], tx_lat[1], tx_lon[2], tx_lat[2], lwd = 2)
+rect(la_lon[1], la_lat[1], la_lon[2], la_lat[2], lwd = 2)
+rect(neg_lon[1], neg_lat[1], neg_lon[2], neg_lat[2], lwd = 2)
+rect(wfl_lon[1], wfl_lat[1], wfl_lon[2], wfl_lat[2], lwd = 2)
 
 ### only since 2000
 st_yr <- 2000
@@ -112,43 +181,43 @@ wfl_ssta <- apply(ssta[lon >= wfl_lon[1] & lon <= wfl_lon[2],
 
 plot(time_extract, cb_ssta, type = "n", xlab = "Time", ylab = "SST (°C)", main = "SSTa Time Series for CB Region",
      xaxt = 'n')
-points(time_extract[which(cb_ssta>0)], cb_ssta[which(cb_ssta>0)], type = "h", col = 'red')
-points(time_extract[which(cb_ssta<0)], cb_ssta[which(cb_ssta<0)], type = "h", col = 'blue')
+points(time_extract[which(cb_ssta>0)], cb_ssta[which(cb_ssta>0)], type = "h", col = 2)
+points(time_extract[which(cb_ssta<0)], cb_ssta[which(cb_ssta<0)], type = "h", col = 4)
 axis(1, seq.Date(as.Date("2000-01-01"), as.Date("2025-12-31"), by = "year"), 2000:2025)
 abline(h = 0, v = seq.Date(as.Date("2000-01-01"), as.Date("2025-12-31"), by = "year")[seq(1,25,2)], lty = 5)
-lines(time_extract, lowess(cb_ssta, f = 1/50)$y, lwd = 4, col = 1)
+lines(time_extract, lowess(cb_ssta, f = 1/104)$y, lwd = 4, col = 1)
 
 plot(time_extract, sg_ssta, type = "n", xlab = "Time", ylab = "SST (°C)", main = "SSTa Time Series for SG Region",
      xaxt = 'n')
-points(time_extract[which(sg_ssta>0)], sg_ssta[which(sg_ssta>0)], type = "h", col = 'red')
-points(time_extract[which(sg_ssta<0)], sg_ssta[which(sg_ssta<0)], type = "h", col = 'blue')
+points(time_extract[which(sg_ssta>0)], sg_ssta[which(sg_ssta>0)], type = "h", col = 2)
+points(time_extract[which(sg_ssta<0)], sg_ssta[which(sg_ssta<0)], type = "h", col = 4)
 axis(1, seq.Date(as.Date("2000-01-01"), as.Date("2025-12-31"), by = "year"), 2000:2025)
 abline(h = 0, v = seq.Date(as.Date("2000-01-01"), as.Date("2025-12-31"), by = "year")[seq(1,25,2)], lty = 5)
-lines(time_extract, lowess(sg_ssta, f = 1/50)$y, lwd = 4, col = 1)
+lines(time_extract, lowess(sg_ssta, f = 1/104)$y, lwd = 4, col = 1)
 
 plot(time_extract, swg_ssta, type = "n", xlab = "Time", ylab = "SST (°C)", main = "SSTa Time Series for SWG Region",
      xaxt = 'n')
-points(time_extract[which(swg_ssta>0)], swg_ssta[which(swg_ssta>0)], type = "h", col = 'red')
-points(time_extract[which(swg_ssta<0)], swg_ssta[which(swg_ssta<0)], type = "h", col = 'blue')
+points(time_extract[which(swg_ssta>0)], swg_ssta[which(swg_ssta>0)], type = "h", col = 2)
+points(time_extract[which(swg_ssta<0)], swg_ssta[which(swg_ssta<0)], type = "h", col = 4)
 axis(1, seq.Date(as.Date("2000-01-01"), as.Date("2025-12-31"), by = "year"), 2000:2025)
 abline(h = 0, v = seq.Date(as.Date("2000-01-01"), as.Date("2025-12-31"), by = "year")[seq(1,25,2)], lty = 5)
-lines(time_extract, lowess(swg_ssta, f = 1/50)$y, lwd = 4, col = 1)
+lines(time_extract, lowess(swg_ssta, f = 1/104)$y, lwd = 4, col = 1)
 
 plot(time_extract, tx_ssta, type = "n", xlab = "Time", ylab = "SST (°C)", main = "SSTa Time Series for TX Region",
      xaxt = 'n')
-points(time_extract[which(tx_ssta>0)], tx_ssta[which(tx_ssta>0)], type = "h", col = 'red')
-points(time_extract[which(tx_ssta<0)], tx_ssta[which(tx_ssta<0)], type = "h", col = 'blue')
+points(time_extract[which(tx_ssta>0)], tx_ssta[which(tx_ssta>0)], type = "h", col = 2)
+points(time_extract[which(tx_ssta<0)], tx_ssta[which(tx_ssta<0)], type = "h", col = 4)
 axis(1, seq.Date(as.Date("2000-01-01"), as.Date("2025-12-31"), by = "year"), 2000:2025)
 abline(h = 0, v = seq.Date(as.Date("2000-01-01"), as.Date("2025-12-31"), by = "year")[seq(1,25,2)], lty = 5)
-lines(time_extract, lowess(tx_ssta, f = 1/50)$y, lwd = 4, col = 1)
+lines(time_extract, lowess(tx_ssta, f = 1/104)$y, lwd = 4, col = 1)
 
 plot(time_extract, la_ssta, type = "n", xlab = "Time", ylab = "SST (°C)", main = "SSTa Time Series for LA Region",
      xaxt = 'n')
-points(time_extract[which(la_ssta>0)], la_ssta[which(la_ssta>0)], type = "h", col = 'red')
-points(time_extract[which(la_ssta<0)], la_ssta[which(la_ssta<0)], type = "h", col = 'blue')
+points(time_extract[which(la_ssta>0)], la_ssta[which(la_ssta>0)], type = "h", col = 2)
+points(time_extract[which(la_ssta<0)], la_ssta[which(la_ssta<0)], type = "h", col = 4)
 axis(1, seq.Date(as.Date("2000-01-01"), as.Date("2025-12-31"), by = "year"), 2000:2025)
 abline(h = 0, v = seq.Date(as.Date("2000-01-01"), as.Date("2025-12-31"), by = "year")[seq(1,25,2)], lty = 5)
-lines(time_extract, lowess(la_ssta, f = 1/50)$y, lwd = 4, col = 1)
+lines(time_extract, lowess(la_ssta, f = 1/104)$y, lwd = 4, col = 1)
 
 plot(time_extract, neg_ssta, type = "n", xlab = "Time", ylab = "SST (°C)", main = "SSTa Time Series for NEG Region",
      xaxt = 'n')
@@ -156,7 +225,7 @@ points(time_extract[which(neg_ssta>0)], neg_ssta[which(neg_ssta>0)], type = "h",
 points(time_extract[which(neg_ssta<0)], neg_ssta[which(neg_ssta<0)], type = "h", col = 'blue')
 axis(1, seq.Date(as.Date("2000-01-01"), as.Date("2025-12-31"), by = "year"), 2000:2025)
 abline(h = 0, v = seq.Date(as.Date("2000-01-01"), as.Date("2025-12-31"), by = "year")[seq(1,25,2)], lty = 5)
-lines(time_extract, lowess(neg_ssta, f = 1/50)$y, lwd = 4, col = 1)
+lines(time_extract, lowess(neg_ssta, f = 1/104)$y, lwd = 4, col = 1)
 
 plot(time_extract, wfl_ssta, type = "n", xlab = "Time", ylab = "SST (°C)", main = "SSTa Time Series for WFL Region",
      xaxt = 'n')
@@ -164,11 +233,12 @@ points(time_extract[which(wfl_ssta>0)], wfl_ssta[which(wfl_ssta>0)], type = "h",
 points(time_extract[which(wfl_ssta<0)], wfl_ssta[which(wfl_ssta<0)], type = "h", col = 'blue')
 axis(1, seq.Date(as.Date("2000-01-01"), as.Date("2025-12-31"), by = "year"), 2000:2025)
 abline(h = 0, v = seq.Date(as.Date("2000-01-01"), as.Date("2025-12-31"), by = "year")[seq(1,25,2)], lty = 5)
-lines(time_extract, lowess(wfl_ssta, f = 1/50)$y, lwd = 4, col = 1)
+lines(time_extract, lowess(wfl_ssta, f = 1/104)$y, lwd = 4, col = 1)
 
 
 ### load SSTs
-setwd("C:/Users/brendan.turley/Documents/R_projects/ESR-indicator-scratch/data/intermediate_files")
+# setwd("C:/Users/brendan.turley/Documents/R_projects/ESR-indicator-scratch/data/intermediate_files")
+setwd("~/R_projects/ESR-indicator-scratch/data/intermediate_files")
 dat <- nc_open("oisst_wgulf.nc")
 
 sst <- ncvar_get(dat, "oisst_wgulf")
@@ -193,41 +263,41 @@ range(all_trend, na.rm = T)
 imagePlot(all_trend[,dim(sst)[2]:1],breaks=seq(-2,2,.05),
           col=cmocean('balance')(length(seq(-2,2,.05))-1))
 
-### define regions to examine
-cb_lon <- c(-90.5, -86.5)
-cb_lat <- c(21, 24)
-
-sg_lon <- c(-95, -90.5)
-sg_lat <- c(18, 22)
-
-swg_lon <- c(-98, -95)
-swg_lat <- c(18.5, 26)
-
-tx_lon <- c(-98, -94)
-tx_lat <- c(26, 30)
-
-la_lon <- c(-94, -89)
-la_lat <- c(28, 30)
-
-neg_lon <- c(-89, -83)
-neg_lat <- c(28, 30.5)
-
-wfl_lon <- c(-85, -81)
-wfl_lat <- c(24.5, 28)
-
-### only since 2000
-st_yr <- 2000
-end_yr <- 2025
-
-
-image(lon,rev(lat),sst[,dim(sst)[2]:1,1])
-rect(cb_lon[1], cb_lat[1], cb_lon[2], cb_lat[2], lwd = 2)
-rect(swg_lon[1], swg_lat[1], swg_lon[2], swg_lat[2], lwd = 2)
-rect(sg_lon[1], sg_lat[1], sg_lon[2], sg_lat[2], lwd = 2)
-rect(tx_lon[1], tx_lat[1], tx_lon[2], tx_lat[2], lwd = 2)
-rect(la_lon[1], la_lat[1], la_lon[2], la_lat[2], lwd = 2)
-rect(neg_lon[1], neg_lat[1], neg_lon[2], neg_lat[2], lwd = 2)
-rect(wfl_lon[1], wfl_lat[1], wfl_lon[2], wfl_lat[2], lwd = 2)
+# ### define regions to examine
+# cb_lon <- c(-90.5, -86.5)
+# cb_lat <- c(21, 24)
+# 
+# sg_lon <- c(-95, -90.5)
+# sg_lat <- c(18, 22)
+# 
+# swg_lon <- c(-98, -95)
+# swg_lat <- c(18.5, 26)
+# 
+# tx_lon <- c(-98, -94)
+# tx_lat <- c(26, 30)
+# 
+# la_lon <- c(-94, -89)
+# la_lat <- c(28, 30)
+# 
+# neg_lon <- c(-89, -83)
+# neg_lat <- c(28, 30.5)
+# 
+# wfl_lon <- c(-85, -81)
+# wfl_lat <- c(24.5, 28)
+# 
+# ### only since 2000
+# st_yr <- 2000
+# end_yr <- 2025
+# 
+# 
+# image(lon,rev(lat),sst[,dim(sst)[2]:1,1])
+# rect(cb_lon[1], cb_lat[1], cb_lon[2], cb_lat[2], lwd = 2)
+# rect(swg_lon[1], swg_lat[1], swg_lon[2], swg_lat[2], lwd = 2)
+# rect(sg_lon[1], sg_lat[1], sg_lon[2], sg_lat[2], lwd = 2)
+# rect(tx_lon[1], tx_lat[1], tx_lon[2], tx_lat[2], lwd = 2)
+# rect(la_lon[1], la_lat[1], la_lon[2], la_lat[2], lwd = 2)
+# rect(neg_lon[1], neg_lat[1], neg_lon[2], neg_lat[2], lwd = 2)
+# rect(wfl_lon[1], wfl_lat[1], wfl_lon[2], wfl_lat[2], lwd = 2)
 
 
 ### extract sst timeseries using the regions defined
@@ -237,7 +307,8 @@ cb_sst <- apply(sst[lon >= cb_lon[1] & lon <= cb_lon[2],
                     lat >= cb_lat[1] & lat <= cb_lat[2],
                     year(time) >= st_yr & year(time) <= end_yr],
                 3, mean, na.rm = TRUE)
-plot(time_extract, cb_sst, type = "l", xlab = "Time", ylab = "SST (°C)", main = "SST Time Series for CB Region")
+plot(time_extract, cb_sst, type = "l", xlab = "Time", ylab = "SST (°C)", main = "SST Time Series for CB Region", col = 4)
+abline(h = mean(cb_sst,na.rm=T), lty = 5)
 
 sg_sst <- apply(sst[lon >= sg_lon[1] & lon <= sg_lon[2],
                     lat >= sg_lat[1] & lat <= sg_lat[2],
