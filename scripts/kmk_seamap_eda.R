@@ -278,9 +278,9 @@ points(kmk_pos$lon, kmk_pos$lat, pch = '.')
 cpue_model2 <- gam(
   cpue2 ~ s(TEMPSURF,k=6) + 
     s(TEMP_BOT) +
-    s(SALSURF,k=6) +
+    # s(SALSURF,k=6) +
     # s(SALMAX) + 
-    s(CHLORSURF,k=6) + 
+    s(CHLORSURF,k=6) +
     # s(CHLORMAX) + 
     # s(OXYSURF,k=6) + 
     # s(OXYMAX) + 
