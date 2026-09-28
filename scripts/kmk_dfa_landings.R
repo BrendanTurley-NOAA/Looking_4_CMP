@@ -22,34 +22,42 @@ units(mx$`Trolling catch`) <- 't'
 units(mx$`Total catch`) <- 't'
 
 
-head(mx)
-
-us_sub <- subset(us, Fishing.Year>=1970) |>
+us_sub <- subset(us, Fishing.Year>=1990) |>
   setNames(c('year','us_gn','us_tr'))
-mx_sub <- subset(mx, Year<=2023) |>
+mx_sub <- subset(mx, Year<=2023 & Year>=1990) |>
   setNames(c('year','mx_gn','mx_tr','mx_tot'))
 mx_sub <- mx_sub[,-4]
 
 mx_us <- merge(mx_sub,us_sub,by='year')
 mx_us_std <- scale(mx_us[,2:5])
 
-par(mfrow=c(2,1))
-plot(mx_us$year,mx_us$mx_gn, typ = 'o', col = 1, lwd = 2, pch = 16,
-     panel.first = abline(h=0,lty=5),
-     ylim = c(0,max(mx_us[,2:5],na.rm=T)))
+cols <- cmocean('phase')(5)[-1]
+pts <- rep(c(16,17),2)
+
+setwd("~/R_projects/Looking_4_CMP/figs")
+png('mx-us-landings.png', width = 7, height = 8, res = 300, units = 'in')
+par(mfrow=c(2,1), mar = c(3,4,1,1))
+plot(mx_us$year,mx_us$mx_gn, typ = 'o', col = cols[1], lwd = 2, pch = pts[1],
+     panel.first = list(grid(), abline(h=0,lty=5)),
+     ylim = c(0,max(mx_us[,2:5],na.rm=T)), xaxt = 'n',
+     xlab = '', ylab ='Landings (mt)', las=1)
 for(i in 3:5){
-  points(mx_us$year, mx_us[,i], typ = 'o',col = i-1, lwd = 2, pch = 16)
+  points(mx_us$year, mx_us[,i], typ = 'o',col = cols[i-1], lwd = 2, pch = pts[i-1])
 }
-abline(v=c(2015,2020))
+abline(v=c(2016,2020), lty = 5)
+axis(1, (1982:2025)[seq(1,44,2)], las = 2)
 
-plot(mx_us$year,mx_us_std[,1], typ = 'o', col = 1, lwd = 2, pch = 16,
-     panel.first = abline(h=0,lty=5),
-     ylim = range(mx_us_std,na.rm=T))
-for(i in 2:5){
-  points(mx_us$year, mx_us_std[,i], typ = 'o',col = i, lwd = 2, pch = 16) 
+plot(mx_us$year,mx_us_std[,1], typ = 'o', col = cols[1], lwd = 2, pch = pts[1],
+     panel.first = list(grid(), abline(h=0,lty=5)),
+     ylim = range(mx_us_std,na.rm=T), xaxt = 'n',
+     xlab = '', ylab = 'Standardized Landings')
+for(i in 2:4){
+  points(mx_us$year, mx_us_std[,i], typ = 'o',col = cols[i], lwd = 2, pch = pts[i]) 
 }
-abline(v=c(2015,2020))
-
+abline(v=c(2016,2020), lty = 5)
+axis(1, (1982:2025)[seq(1,44,2)], las = 2)
+legend('bottomleft',c('MX GN', 'MX TR', 'US GN', 'US TR'), col = cols[1:4], pch = pts, cex = .8)
+dev.off()
 
 
 # https://atsa-es.github.io/atsa-labs/sec-dfa.html

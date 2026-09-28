@@ -39,9 +39,9 @@ catch_kmk <- subset(catch, BIO_BGS %in% kmk$BIOCODE)
 # merrec_kmk <- subset(merrec, BGSID %in% catch_kmk$BGSID)
 lthfreq_kmk <- subset(lthfreq, BGSID %in% unique(catch_kmk$BGSID))
 
-sta_kmk <- subset(sta, STATIONID %in% unique(catch_kmk$STATIONID))
-sta_kmk0 <- subset(sta, is.element(CRUISEID, sta_kmk$CRUISEID))
-sta_kmk0.1 <- sta_kmk0[-which(is.element(sta_kmk0$STATIONID, sta_kmk$STATIONID)),]
+sta_kmk <- subset(sta, STATIONID %in% catch_kmk$STATIONID)
+sta_kmk0 <- subset(sta, is.element(CRUISEID, sta_kmk$CRUISEID)) |>
+  subset(!is.element(STATIONID, sta_kmk$STATIONID))
 
 ### only shrimp trawl gear size 40
 gear_sta_id <- subset(invrec, GEAR_SIZE==40 & GEAR_TYPE=='ST', select = 'STATIONID')
@@ -188,7 +188,7 @@ all0_merge <- remove0(all0_merge)
 ### outlier removal function
 
 outlier_rm <- function(x, col = c('depth', 'WIND_SPD',
-                                  # 'CHLORSURF', 'CHLORMAX',
+                                  'CHLORSURF', 'CHLORMAX',
                                   'OXYSURF', 'OXYMAX')) {
   x <- drop_units(x)
   for(i in 1:length(col)){
@@ -202,7 +202,7 @@ outlier_rm <- function(x, col = c('depth', 'WIND_SPD',
   x
 }
 
-all_merge_t <- outlier_rm(all_merge)
+all_merge <- outlier_rm(all_merge)
 
 
 ### use the operation code in invrec and haulvalue in starec to filter for quality
@@ -221,6 +221,7 @@ kmk_pos <- all_merge |>
          OXYMAX, TURBSURF, TURBMAX)
 kmk_pos$cpue <- kmk_pos$SELECT_BGS / kmk_pos$effort_km2 #|> drop_units()
 kmk_pos$cpue2 <- kmk_pos$SELECT_BGS / kmk_pos$hrs_fish #|> drop_units()
+kmk_pos$lcpue2 <- log10(kmk_pos$SELECT_BGS / kmk_pos$hrs_fish) #|> drop_units()
 kmk_pos$npue <- kmk_pos$CNTEXP / kmk_pos$effort_km2 #|> drop_units()
 kmk_pos$npue2 <- kmk_pos$CNTEXP / kmk_pos$hrs_fish #|> drop_units()
 kmk_pos$jday <- kmk_pos$start_utc |> yday()
@@ -257,9 +258,10 @@ cpue_model1 <- gam(
     # s(lon, lat, bs = 'sos') +
     # s(hour, bs = "cc", k=6) +        # Cyclic smooth for hour of day (wraps around)
     s(hour, bs = "cc", k=6) +        # Cyclic smooth for hour of day (wraps around)
-    s(jday, bs = "cc", k=6) +        # Cyclic smooth for Julian day (wraps around)
+    # s(jday, bs = "cc", k=6) +        # Cyclic smooth for Julian day (wraps around)
     # month +
-    year, # Year treated as a factor/fixed effect
+    # s(year, bs = 're'), # Year treated as a factor/fixed effect
+    year, 
     # s(year),            
   data = kmk_pos,            # Replace with your dataset name
   # family=gaussian(),
@@ -271,6 +273,40 @@ AIC(cpue_model1)
 gam.check(cpue_model1, old.style=F, type=c("response"))
 plot(cpue_model1, pages=1, scale=F, shade=T, seWithMean=T,scheme=2,rug=T,residuals=F)
 vis.gam(cpue_model1, view = c('lon','lat'), plot.type = 'contour', lp = 1, #type = 'response',
+        n.grid = 100, too.far = 0.05, color = "heat", asp = 1)
+points(kmk_pos$lon, kmk_pos$lat, pch = '.')
+
+kt <- 6
+cpue_model1.1 <- gam(
+  lcpue2 ~ s(TEMPSURF, bs = 'tp', k = kt) + 
+    s(TEMP_BOT, bs = 'tp', k = kt) +
+    s(SALSURF, bs = 'tp', k = kt) + 
+    s(SALMAX, bs = 'tp', k = kt) +
+    s(CHLORSURF, bs = 'tp', k = kt) + 
+    s(CHLORMAX, bs = 'tp', k = kt) +
+    s(OXYSURF, bs = 'tp', k = kt) + 
+    s(OXYMAX, bs = 'tp', k = kt) +
+    s(WIND_SPD, bs = 'tp', k = kt) +
+    s(depth, bs = 'tp', k = kt) +
+    te(lon, lat, k = kt) +               # 2D spatial smooth; alt: s(lon, lat)
+    # s(lat, lon, bs = 'sos') +
+    # s(hour, bs = "cc", k = kt) +        # Cyclic smooth for hour of day (wraps around)
+    s(hour, bs = "cc", k = kt) +        # Cyclic smooth for hour of day (wraps around)
+    # s(jday, bs = "cc", k = kt) +        # Cyclic smooth for Julian day (wraps around)
+    month +
+    # s(year, bs = 're'), # Year treated as a factor/fixed effect
+    year, 
+  # s(year),            
+  data = kmk_pos,            # Replace with your dataset name
+  family = gaussian(),
+  # family = tw(), # Tweedie distribution (ideal for zero-inflated CPUE)
+  method = "REML"                    # Restricted Maximum Likelihood (highly recommended)
+)
+summary(cpue_model1.1)
+AIC(cpue_model1.1)
+gam.check(cpue_model1.1, old.style=F, type=c("response"))
+plot(cpue_model1.1, pages=1, scale=F, shade=T, seWithMean=T,scheme=2,rug=T,residuals=F)
+vis.gam(cpue_model1.1, view = c('lon','lat'), plot.type = 'contour', lp = 1, type = 'response',
         n.grid = 100, too.far = 0.05, color = "heat", asp = 1)
 points(kmk_pos$lon, kmk_pos$lat, pch = '.')
 

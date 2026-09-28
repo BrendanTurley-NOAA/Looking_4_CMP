@@ -42,6 +42,10 @@ dat <- dat[which(dat$shore.Adjacent == 1), ]
 
 names(dat)
 
+### what has most landings?
+aggregate(Landed.Lbs ~ Common.Name, data = dat, sum, na.rm = T) |> View()
+aggregate(value_2024 ~ Common.Name, data = dat, sum, na.rm = T) |> View()
+
 kmk_dat <- subset(dat, Species.ITIS=='172435')
 kmk_dat$dol_lbs <- kmk_dat$value_2024 / kmk_dat$Landed.Lbs
 

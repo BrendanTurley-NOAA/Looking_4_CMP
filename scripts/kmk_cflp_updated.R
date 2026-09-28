@@ -8,15 +8,15 @@ library(sf)
 library(terra)
 library(viridisLite)
 
-setwd("C:/Users/brendan.turley/Documents/data/shapefiles/GSHHS_shp/i")
+setwd("~/data/shapefiles/GSHHS_shp/i")
 world <- vect('GSHHS_i_L1.shp')
 
-setwd("C:/Users/brendan.turley/Documents/data/shapefiles/king_mackerel")
+setwd("~/data/shapefiles/king_mackerel")
 kmk <- vect('king_mackerel_po.shp')
 # setwd("C:/Users/brendan.turley/Documents/data/shapefiles/GOM_2500ft")
 # gom <- vect('GOM_2500ft.shp')
 
-setwd("C:/Users/brendan.turley/Documents/data/shapefiles/cflp_statgrid")
+setwd("~/data/shapefiles/cflp_statgrid")
 sz_shp <- vect('CFLP_StatGrid_2013_v20140210.shp') |>
   st_as_sf()
 sz_shp$AREA_FISHED <- sz_shp$SZ_ID
@@ -24,12 +24,18 @@ sz_shp$AREA_FISHED <- sz_shp$SZ_ID
 #### read data and subset ####--------------------------------------------------
 gom_st <- c('FL', 'AL', 'MS', 'LA', 'TX') |> sort()
 
-setwd("C:/Users/brendan.turley/Documents/CMP/data/cflp")
+setwd("~/CMP/data/cflp")
 cflp <- readRDS('CFLPblake.rds')
 cflp <- subset(cflp, LAND_YEAR>1998 & CATCH_TYPE == 'CATCH') |>
   subset(REGION == 'GOM' & is.element(ST_ABRV, gom_st)) |>
   subset(AREA_FISHED!='1' & AREA_FISHED!='2' & !is.na(AREA_FISHED))
 gc()
+
+### what has most landings?
+cflp <- subset(cflp, LAND_YEAR>1998 & CATCH_TYPE == 'CATCH') |>
+  subset(REGION == 'GOM' & is.element(ST_ABRV, gom_st))
+
+aggregate(TOTAL_WHOLE_POUNDS ~ COMMON_NAME, data = cflp, sum, na.rm = T) |> View()
 
 ### pull out handlines only
 # table(cflp$GEAR)
@@ -128,6 +134,7 @@ plot(aggregate(AREA_FISHED ~ LAND_YEAR,
 grid()
 dev.off()
 
+
 kmk_area <- aggregate(AREA_FISHED ~ LAND_YEAR, 
                       data = subset(cpue_yr_area_region,
                                       LAND_YEAR>2012), length)
@@ -164,3 +171,10 @@ legend( -97.5, 26.5,
        title = '# of years fished 2022-24',
        xpd = F, horiz = T)
 dev.off()
+
+plot(world, xlim = c(-97.5,-80), ylim = c(24, 31))
+plot(kmk_areas['LAND_YEAR'], pal = rocket(length(seq(0,12,3)),direction=-1), breaks = seq(0,12,3), add=T)
+legend( -97.5, 26.5, 
+        seq(0,12,3), fill = rocket(length(seq(0,12,3)),direction=-1),
+        # title = '# of years fished 2022-24',
+        xpd = F, horiz = T)

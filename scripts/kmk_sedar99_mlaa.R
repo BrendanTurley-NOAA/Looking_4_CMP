@@ -9,7 +9,7 @@ year_st <- kmk_mlaa$FISHING_YEAR
 kmk <- kmk_mlaa[,-c(1:3,16:28)] |> as.data.frame()
 kmk[kmk==0] <- NA
 kmk_n <- kmk_mlaa[,c(17:28)] |> as.data.frame()
-# kmk <- kmk[-which(kmk_n<5)]
+# kmk <- kmk[-which(kmk_n<3)]
 
 plot(year_st, kmk$lbar_12,
      ylim = range(kmk[,-1], na.rm = T),
@@ -31,13 +31,14 @@ plot(year_st, weighted_mean_by_year)
 
 
 kmk_mlaa <- read_xlsx('KM_com_mlaa_8424_20260313.xlsx', sheet = 2)
+year_st <- kmk_mlaa$FISHING_YEAR
 
-kmk <- kmk_mlaa[,-c(1,16:28)] |> as.data.frame()
+kmk <- kmk_mlaa[,-c(1:3,16:28)] |> as.data.frame()
 kmk[kmk==0] <- NA
 
-plot(kmk$FISHING_YEAR, kmk$lbar_12,
+plot(year_st, kmk$lbar_12,
      ylim = range(kmk[,-1], na.rm = T),
      typ = 'n')
 for(i in 3:14){
-  points(kmk$FISHING_YEAR, as.vector(kmk[,i]), typ = 'l', col = i, lwd = 2)
+  points(year_st, as.vector(kmk[,i]), typ = 'l', col = i, lwd = 2)
 }

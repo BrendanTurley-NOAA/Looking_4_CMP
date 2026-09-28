@@ -901,6 +901,8 @@ plot(output$V1, output$V3, typ='o')
 # GSI ---------------------------------------------------------------------
 
 table(dat_38u$REPRO_PHASE, dat_38u$CATCH_MONTH)
+table(dat_38u$REPRO_PHASE, dat_38u$CATCH_MONTH) |> barplot()
+
 
 gsi <- dat_38u$GONAD_WEIGHT_FRESH_G/dat_38u$WHOLE_WEIGHT_G
 
