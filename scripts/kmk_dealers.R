@@ -12,12 +12,22 @@ library(sf)
 library(terra)
 library(tigris)
 library(ggplot2)
+library(rnaturalearth) # Provides map data
+library(rnaturalearthdata)
+
+# 1. Fetch map data as an sf object
+# world <- ne_countries(scale = "large", returnclass = "sf")
+states <- ne_states(country = 'United States of America', returnclass = "sf")
 
 ### county shapfiles from Census TIGRIS
 cnty <- counties()
+# states <- states()
 ### which state FIPS: FL, AL, MS, LA, TX
 stfps <- paste(sprintf('%02d',c(12, 01, 28, 22, 48)))
 gulf <- subset(cnty, STATEFP %in% stfps)
+
+setwd("~/data/shapefiles/GSHHS_shp/i")
+world <- vect('GSHHS_i_L1.shp') |> st_as_sf()
 
 
 ### identify coastal and coastal adjacent counties using NCCOS's ENOW dataset via Seann
@@ -137,7 +147,296 @@ legend('topright',states, lty = 1, col = 1:5, lwd = 2,cex=.7)
 
 
 
+
 ### map of value and landings per county overall
+kmk_dat |>
+  group_by(dealer_county, dealer_geoid) |>
+  summarize(
+    total_value = sum(value_2024, na.rm = TRUE),
+    total_lbs = sum(Landed.Lbs, na.rm = TRUE),
+    unique_dealers = n_distinct(License)
+  ) |>
+  arrange(desc(total_value))
+
+cnty_sum <- kmk_dat |> 
+  group_by(Year, dealer_county, dealer_geoid) |>
+  summarize(
+    total_value = sum(value_2024, na.rm = TRUE),
+    total_lbs = sum(Landed.Lbs, na.rm = TRUE)
+  ) |> 
+  group_by(dealer_county, dealer_geoid) |>
+  summarize(
+    total_value = mean(total_value, na.rm = TRUE),
+    total_lbs = mean(total_lbs, na.rm = TRUE)
+  ) |>
+  rename(GEOID = dealer_geoid)
+  
+gulf_val <- merge(gulf,cnty_sum, by = 'GEOID')
+
+cnty_n <- aggregate(License ~ dealer_county + dealer_geoid, data = kmk_dat, function(x) length(unique(x))) |>
+  # arrange(desc(License)) |>
+  setNames(c('county','GEOID','License'))
+cnty_n <- merge(gulf, cnty_n, by = 'GEOID')
+
+
+
+ggplot() +
+  geom_sf(data = world) +
+  geom_sf(data = gulf_val, 
+          aes(fill = total_value)) +
+  scale_fill_viridis_c(
+    trans = "log10",
+    name = "2024 USD",
+    labels = scales::label_comma(),
+    na.value = "grey50",
+    option = 'G',
+    direction = -1
+  ) +
+  geom_sf(data = states, fill = NA) +
+  coord_sf(
+    xlim = c(-98, -80), 
+    ylim = c(24, 31)
+  ) + 
+  labs(
+    title = "King Mackerel Value by County",
+    subtitle = "Mean Annual value 2001-2024",
+    caption = "SEFSC-SSRG dealer dataset",
+    x = 'Longitude', y = 'Latitude'
+  ) +
+  theme_minimal()
+
+ggplot() +
+  geom_sf(data = world) +
+  geom_sf(data = gulf_val,
+          aes(fill = total_lbs)) +
+  scale_fill_viridis_c(
+    trans = "log10",
+    name = "Pounds",
+    labels = scales::label_comma(),
+    na.value = "grey50",
+    option = 'F',
+    direction = -1
+  ) +
+  geom_sf(data = states, fill = NA) +
+  coord_sf(
+    xlim = c(-98, -80), 
+    ylim = c(24, 31)
+  ) + 
+  labs(
+    title = "King Mackerel Landings by County",
+    subtitle = "Mean Annual landings 2001-2024",
+    caption = "SEFSC-SSRG dealer dataset",
+    x = 'Longitude', y = 'Latitude'
+  ) +
+  theme_minimal()
+
+
+ggplot() +
+  geom_sf(data = world) +
+  geom_sf(data = cnty_n,
+          aes(fill = License)) +
+  scale_fill_viridis_c(
+    # trans = "log10",
+    name = "Dealers",
+    labels = scales::label_comma(),
+    na.value = "grey50",
+    option = 'F',
+    direction = -1
+  ) +
+  geom_sf(data = states, fill = NA) +
+  coord_sf(
+    xlim = c(-98, -80), 
+    ylim = c(24, 31)
+  ) +
+  labs(
+    title = "King Mackerel Dealers per County",
+    subtitle = "Total Dealers 2001-2024",
+    caption = "SEFSC-SSRG dealer dataset",
+    x = 'Longitude', y = 'Latitude'
+  ) +
+  theme_minimal()
+
+
+### trend in landings per county over time
+
+library(Kendall)
+
+kmk_ann <- kmk_dat |> 
+  group_by(Year, dealer_county, dealer_geoid) |>
+  summarize(
+    total_value = sum(value_2024, na.rm = TRUE),
+    total_lbs = sum(Landed.Lbs, na.rm = TRUE),
+    unique_dealers = n_distinct(License)
+  )
+
+dlr_rm <- kmk_dat |> 
+  group_by(dealer_county, dealer_geoid) |>
+  summarize(
+    unique_dealers = n_distinct(License)
+  ) |>
+  filter(unique_dealers < 3)
+  # print(n = 50)
+
+filtered_data <- kmk_ann |>
+  # group_by(dealer_geoid) |>
+  # filter(max(unique_dealers) > 2) |>
+  # group_by(unique_dealers) |>
+  # filter(unique_dealers >= 3) |>
+  ungroup() |>
+  group_by(dealer_geoid) |>
+  filter(n() >= 4)
+
+county_mk_trends <- filtered_data %>%
+  # Ensure data is sorted chronologically within each county
+  arrange(dealer_geoid, Year) %>% 
+  group_by(dealer_geoid) %>%
+  summarize(
+    # Tau ranges from -1 (perfect decrease) to 1 (perfect increase)
+    mk_tau = as.numeric(MannKendall(total_lbs)$tau),
+    p_value = as.numeric(MannKendall(total_lbs)$sl),
+    mk_tau2 = as.numeric(MannKendall(unique_dealers)$tau),
+    p_value2 = as.numeric(MannKendall(unique_dealers)$sl)
+  ) |>
+  rename(GEOID = dealer_geoid)
+county_mk_trends <- subset(county_mk_trends, !is.element(GEOID, dlr_rm$dealer_geoid))
+
+gulf_trend <- merge(gulf,county_mk_trends, by = 'GEOID') |>
+  filter(p_value2 < 1)
+# gulf_trend$mk_tau[gulf_trend$p_value>.1] <- 0
+
+
+
+ggplot() +
+  geom_sf(data = world) +
+  geom_sf(data = gulf_trend,
+          aes(fill = mk_tau)) +
+  scale_fill_gradient2(
+    low = "blue",        # Color for negative values (decreasing trend)
+    mid = "white",       # Color exactly at 0 (no trend)
+    high = "red",        # Color for positive values (increasing trend)
+    midpoint = 0,        # Explicitly centers the scale at 0
+    name = "Trend Slope",
+    labels = scales::label_comma()
+  ) +
+  geom_sf(data = states, fill = NA) +
+  stat_sf_coordinates(
+    data = filter(gulf_trend, p_value < 0.05), # Filters data on the fly
+    shape = 21,          # Equivalent to pch = 21 (allows both fill and border color)
+    fill = "black",      # Interior background color (bg = 1)
+    color = "white",     # Outer border line color (col = 'white')
+    size = 3,            # Bumped size slightly so the white border is crisp
+    stroke = 1 
+  )  +
+  coord_sf(
+    xlim = c(-98, -80), 
+    ylim = c(24, 31)
+  ) +
+  labs(title = "Landings Trend Over Time by County",
+       x = 'Longitude', y = 'Latitude') +
+  theme_minimal()
+
+
+
+ggplot() +
+  geom_sf(data = world) +
+  geom_sf(data = gulf_trend, 
+          aes(fill = mk_tau2)) +
+  scale_fill_gradient2(
+    low = "blue",        # Color for negative values (decreasing trend)
+    mid = "white",       # Color exactly at 0 (no trend)
+    high = "red",        # Color for positive values (increasing trend)
+    midpoint = 0,        # Explicitly centers the scale at 0
+    name = "Trend Slope",
+    labels = scales::label_comma()
+  ) +
+  geom_sf(data = states, fill = NA) +
+  stat_sf_coordinates(
+    data = filter(gulf_trend, p_value2 < 0.05), # Filters data on the fly
+    shape = 21,          # Equivalent to pch = 21 (allows both fill and border color)
+    fill = "black",      # Interior background color (bg = 1)
+    color = "white",     # Outer border line color (col = 'white')
+    size = 3,            # Bumped size slightly so the white border is crisp
+    stroke = 1 
+  ) +
+  coord_sf(
+    xlim = c(-98, -80), 
+    ylim = c(24, 31)
+  ) +
+  labs(title = "Dealers Trend Over Time by County",
+       x = 'Longitude', y = 'Latitude') +
+  theme_minimal()
+
+
+
+### scratch ###
+lm_ts <- function(x){
+  mod <- lm(x ~ c(1:length(x)))
+  return(list(b = coef(mod)[2],
+              p_val = summary(mod)$coefficients[2,4]))
+}
+
+lm_ts(rnorm(100))
+
+county_mk_trends <- filtered_data %>%
+  # Ensure data is sorted chronologically within each county
+  arrange(dealer_geoid, Year) %>% 
+  group_by(dealer_geoid) %>%
+  summarize(
+    # Tau ranges from -1 (perfect decrease) to 1 (perfect increase)
+    lm_b = as.numeric(lm_ts(total_lbs)$b),
+    p_value = as.numeric(lm_ts(total_lbs)$p_val),
+    lm_b2 = as.numeric(lm_ts(unique_dealers)$b),
+    p_value2 = as.numeric(lm_ts(unique_dealers)$p_val)
+  ) |>
+  rename(GEOID = dealer_geoid)
+
+gulf_trend <- merge(gulf,county_mk_trends, by = 'GEOID')
+# gulf_trend$mk_tau[gulf_trend$p_value>.1] <- 0
+
+ggplot(data = gulf_trend) +
+  geom_sf(aes(fill = lm_b)) +
+  scale_fill_gradient2(
+    low = "blue",        # Color for negative values (decreasing trend)
+    mid = "white",       # Color exactly at 0 (no trend)
+    high = "red",        # Color for positive values (increasing trend)
+    midpoint = 0,        # Explicitly centers the scale at 0
+    name = "Trend Slope",
+    labels = scales::label_comma()
+  ) +
+  stat_sf_coordinates(
+    data = ~ filter(.x, p_value < 0.05), # Filters data on the fly
+    shape = 21,          # Equivalent to pch = 21 (allows both fill and border color)
+    fill = "black",      # Interior background color (bg = 1)
+    color = "white",     # Outer border line color (col = 'white')
+    size = 3,            # Bumped size slightly so the white border is crisp
+    stroke = 1 
+  )  +
+  labs(title = "Landings Trend Over Time by County") +
+  theme_minimal()
+
+
+ggplot(data = gulf_trend) +
+  geom_sf(aes(fill = lm_b2)) +
+  scale_fill_gradient2(
+    low = "blue",        # Color for negative values (decreasing trend)
+    mid = "white",       # Color exactly at 0 (no trend)
+    high = "red",        # Color for positive values (increasing trend)
+    midpoint = 0,        # Explicitly centers the scale at 0
+    name = "Trend Slope",
+    labels = scales::label_comma()
+  ) +
+  stat_sf_coordinates(
+    data = ~ filter(.x, p_value2 < 0.05), # Filters data on the fly
+    shape = 21,          # Equivalent to pch = 21 (allows both fill and border color)
+    fill = "black",      # Interior background color (bg = 1)
+    color = "white",     # Outer border line color (col = 'white')
+    size = 3,            # Bumped size slightly so the white border is crisp
+    stroke = 1 
+  )  +
+  labs(title = "Dealers Trend Over Time by County") +
+  theme_minimal()
+
+
 kmk_dat
 
 cnty_val <- aggregate(value_2024 ~ dealer_county + dealer_geoid, data = kmk_dat, sum, na.rm = T) |>
@@ -208,206 +507,4 @@ ggplot(data = gulf_val) +
     subtitle = "Total Dealers 2001-2024",
     caption = "SEFSC-SSRG dealer dataset"
   ) +
-  theme_minimal()
-
-
-kmk_dat |>
-  group_by(dealer_county, dealer_geoid) |>
-  summarize(
-    total_value = sum(value_2024, na.rm = TRUE),
-    total_lbs = sum(Landed.Lbs, na.rm = TRUE),
-    unique_dealers = n_distinct(License)
-  ) |>
-  arrange(desc(total_value))
-
-cnty_sum <- kmk_dat |> 
-  group_by(Year, dealer_county, dealer_geoid) |>
-  summarize(
-    total_value = sum(value_2024, na.rm = TRUE),
-    total_lbs = sum(Landed.Lbs, na.rm = TRUE)
-  ) |> 
-  group_by(dealer_county, dealer_geoid) |>
-  summarize(
-    total_value = mean(total_value, na.rm = TRUE),
-    total_lbs = mean(total_lbs, na.rm = TRUE)
-  ) |>
-  rename(GEOID = dealer_geoid)
-  
-gulf_val <- merge(gulf,cnty_sum, by = 'GEOID')
-
-ggplot(data = gulf_val) +
-  geom_sf(aes(fill = total_value)) +
-  scale_fill_viridis_c(
-    trans = "log10",
-    name = "2024 USD",
-    labels = scales::label_comma(),
-    na.value = "grey50",
-    option = 'G',
-    direction = -1
-  ) +
-  labs(
-    title = "King Mackerel Value by County",
-    subtitle = "Mean Annual value 2001-2024",
-    caption = "SEFSC-SSRG dealer dataset"
-  ) +
-  theme_minimal()
-
-ggplot(data = gulf_val) +
-  geom_sf(aes(fill = total_lbs)) +
-  scale_fill_viridis_c(
-    trans = "log10",
-    name = "Pounds",
-    labels = scales::label_comma(),
-    na.value = "grey50",
-    option = 'F',
-    direction = -1
-  ) +
-  labs(
-    title = "King Mackerel Landings by County",
-    subtitle = "Mean Annual landings 2001-2024",
-    caption = "SEFSC-SSRG dealer dataset"
-  ) +
-  theme_minimal()
-
-### trend in landings per county over time
-
-library(Kendall)
-
-kmk_ann <- kmk_dat |> 
-  group_by(Year, dealer_county, dealer_geoid) |>
-  summarize(
-    total_value = sum(value_2024, na.rm = TRUE),
-    total_lbs = sum(Landed.Lbs, na.rm = TRUE),
-    unique_dealers = n_distinct(License)
-  )
-
-filtered_data <- kmk_ann |>
-  group_by(dealer_geoid) |>
-  filter(n() >= 4) |>
-  ungroup() # Always good practice to ungroup after group-specific operations
-
-county_mk_trends <- filtered_data %>%
-  # Ensure data is sorted chronologically within each county
-  arrange(dealer_geoid, Year) %>% 
-  group_by(dealer_geoid) %>%
-  summarize(
-    # Tau ranges from -1 (perfect decrease) to 1 (perfect increase)
-    mk_tau = as.numeric(MannKendall(total_lbs)$tau),
-    p_value = as.numeric(MannKendall(total_lbs)$sl),
-    mk_tau2 = as.numeric(MannKendall(unique_dealers)$tau),
-    p_value2 = as.numeric(MannKendall(unique_dealers)$sl)
-  ) |>
-  rename(GEOID = dealer_geoid)
-
-gulf_trend <- merge(gulf,county_mk_trends, by = 'GEOID')
-# gulf_trend$mk_tau[gulf_trend$p_value>.1] <- 0
-
-ggplot(data = gulf_trend) +
-  geom_sf(aes(fill = mk_tau)) +
-  scale_fill_gradient2(
-    low = "blue",        # Color for negative values (decreasing trend)
-    mid = "white",       # Color exactly at 0 (no trend)
-    high = "red",        # Color for positive values (increasing trend)
-    midpoint = 0,        # Explicitly centers the scale at 0
-    name = "Trend Slope",
-    labels = scales::label_comma()
-  ) +
-  stat_sf_coordinates(
-    data = ~ filter(.x, p_value < 0.05), # Filters data on the fly
-    shape = 21,          # Equivalent to pch = 21 (allows both fill and border color)
-    fill = "black",      # Interior background color (bg = 1)
-    color = "white",     # Outer border line color (col = 'white')
-    size = 3,            # Bumped size slightly so the white border is crisp
-    stroke = 1 
-  )  +
-  labs(title = "Landings Trend Over Time by County") +
-  theme_minimal()
-
-
-ggplot(data = gulf_trend) +
-  geom_sf(aes(fill = mk_tau2)) +
-  scale_fill_gradient2(
-    low = "blue",        # Color for negative values (decreasing trend)
-    mid = "white",       # Color exactly at 0 (no trend)
-    high = "red",        # Color for positive values (increasing trend)
-    midpoint = 0,        # Explicitly centers the scale at 0
-    name = "Trend Slope",
-    labels = scales::label_comma()
-  ) +
-  stat_sf_coordinates(
-    data = ~ filter(.x, p_value2 < 0.05), # Filters data on the fly
-    shape = 21,          # Equivalent to pch = 21 (allows both fill and border color)
-    fill = "black",      # Interior background color (bg = 1)
-    color = "white",     # Outer border line color (col = 'white')
-    size = 3,            # Bumped size slightly so the white border is crisp
-    stroke = 1 
-  )  +
-  labs(title = "Dealers Trend Over Time by County") +
-  theme_minimal()
-
-lm_ts <- function(x){
-  mod <- lm(x ~ c(1:length(x)))
-  return(list(b = coef(mod)[2],
-              p_val = summary(mod)$coefficients[2,4]))
-}
-
-lm_ts(rnorm(100))
-
-county_mk_trends <- filtered_data %>%
-  # Ensure data is sorted chronologically within each county
-  arrange(dealer_geoid, Year) %>% 
-  group_by(dealer_geoid) %>%
-  summarize(
-    # Tau ranges from -1 (perfect decrease) to 1 (perfect increase)
-    lm_b = as.numeric(lm_ts(total_lbs)$b),
-    p_value = as.numeric(lm_ts(total_lbs)$p_val),
-    lm_b2 = as.numeric(lm_ts(unique_dealers)$b),
-    p_value2 = as.numeric(lm_ts(unique_dealers)$p_val)
-  ) |>
-  rename(GEOID = dealer_geoid)
-
-gulf_trend <- merge(gulf,county_mk_trends, by = 'GEOID')
-# gulf_trend$mk_tau[gulf_trend$p_value>.1] <- 0
-
-ggplot(data = gulf_trend) +
-  geom_sf(aes(fill = lm_b)) +
-  scale_fill_gradient2(
-    low = "blue",        # Color for negative values (decreasing trend)
-    mid = "white",       # Color exactly at 0 (no trend)
-    high = "red",        # Color for positive values (increasing trend)
-    midpoint = 0,        # Explicitly centers the scale at 0
-    name = "Trend Slope",
-    labels = scales::label_comma()
-  ) +
-  stat_sf_coordinates(
-    data = ~ filter(.x, p_value < 0.05), # Filters data on the fly
-    shape = 21,          # Equivalent to pch = 21 (allows both fill and border color)
-    fill = "black",      # Interior background color (bg = 1)
-    color = "white",     # Outer border line color (col = 'white')
-    size = 3,            # Bumped size slightly so the white border is crisp
-    stroke = 1 
-  )  +
-  labs(title = "Landings Trend Over Time by County") +
-  theme_minimal()
-
-
-ggplot(data = gulf_trend) +
-  geom_sf(aes(fill = lm_b2)) +
-  scale_fill_gradient2(
-    low = "blue",        # Color for negative values (decreasing trend)
-    mid = "white",       # Color exactly at 0 (no trend)
-    high = "red",        # Color for positive values (increasing trend)
-    midpoint = 0,        # Explicitly centers the scale at 0
-    name = "Trend Slope",
-    labels = scales::label_comma()
-  ) +
-  stat_sf_coordinates(
-    data = ~ filter(.x, p_value2 < 0.05), # Filters data on the fly
-    shape = 21,          # Equivalent to pch = 21 (allows both fill and border color)
-    fill = "black",      # Interior background color (bg = 1)
-    color = "white",     # Outer border line color (col = 'white')
-    size = 3,            # Bumped size slightly so the white border is crisp
-    stroke = 1 
-  )  +
-  labs(title = "Dealers Trend Over Time by County") +
   theme_minimal()
