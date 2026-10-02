@@ -1,4 +1,5 @@
 
+library(cmocean)
 library(MARSS)
 library(readxl)
 library(units)
@@ -30,6 +31,7 @@ mx_sub <- mx_sub[,-4]
 
 mx_us <- merge(mx_sub,us_sub,by='year')
 mx_us_std <- scale(mx_us[,2:5])
+mx_us_nrm <- apply(mx_us[,2:5], 2, function(x) x/mean(x,na.rm=T))
 
 cols <- cmocean('phase')(5)[-1]
 pts <- rep(c(16,17),2)
@@ -58,6 +60,16 @@ abline(v=c(2016,2020), lty = 5)
 axis(1, (1982:2025)[seq(1,44,2)], las = 2)
 legend('bottomleft',c('MX GN', 'MX TR', 'US GN', 'US TR'), col = cols[1:4], pch = pts, cex = .8)
 dev.off()
+
+
+plot(mx_us$year, mx_us_nrm[,1], typ = 'o', col = cols[1], lwd = 2, pch = pts[1],
+     panel.first = list(grid(), abline(h=1,lty=5)),
+     ylim = range(mx_us_nrm[,1:4]), xaxt = 'n',
+     xlab = '', ylab ='Normalized Landings', las=1)
+for(i in 2:4){
+  points(mx_us$year, mx_us_nrm[,i], typ = 'o',col = cols[i], lwd = 2, pch = pts[i])
+}
+abline(v=c(2016,2020), lty = 5)
 
 
 # https://atsa-es.github.io/atsa-labs/sec-dfa.html

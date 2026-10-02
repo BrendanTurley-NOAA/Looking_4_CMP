@@ -52,6 +52,52 @@ dat <- dat[which(dat$shore.Adjacent == 1), ]
 
 names(dat)
 
+### dealers overtime
+kmk_dat <- subset(dat, Species.ITIS=='172435')
+
+# kmk_dlr <- unique(kmk_dat$License)
+kmk_dlr <- unique(kmk_dat$SupplierDealer.ID)
+
+cnty_n <- aggregate(SupplierDealer.ID ~ dealer_county + dealer_geoid,
+                    data = kmk_dat, function(x) length(unique(x))) |>
+  # arrange(desc(License)) |>
+  setNames(c('county','GEOID','License'))
+
+aggregate(SupplierDealer.ID ~ Year, data = kmk_dat, function(x) length(unique(x))) |>
+  setNames(c('Year','License')) |>
+  plot(typ = 'o')
+
+subset(dat, SupplierDealer.ID %in% kmk_dlr) |>
+  group_by(Year) |>
+  summarize(
+    License = n_distinct(SupplierDealer.ID)
+    ) |>
+  plot(typ = 'o')
+
+dlr_st <- subset(dat, SupplierDealer.ID %in% kmk_dlr) |>
+  group_by(Year, LandingState) |>
+  summarize(
+    License = n_distinct(SupplierDealer.ID)
+  )
+plot(dlr_st$Year, dlr_st$License, typ = 'n', xlab = '', ylab = 'Number of dealers')
+for(i in unique(dlr_st$LandingState)){
+  with(subset(dlr_st, LandingState==i),
+       points(Year, License, col = which(i==unique(dlr_st$LandingState)), typ = 'o', pch = 16, lwd = 2))
+}
+
+
+dlr_st <- kmk_dat |>
+  group_by(Year, LandingState) |>
+  summarize(
+    License = n_distinct(SupplierDealer.ID)
+  )
+plot(dlr_st$Year, dlr_st$License, typ = 'n', xlab = '', ylab = 'Number of dealers')
+for(i in unique(dlr_st$LandingState)){
+  with(subset(dlr_st, LandingState==i),
+       points(Year, License, col = which(i==unique(dlr_st$LandingState)), typ = 'o', pch = 16, lwd = 2))
+}
+
+
 ### what has most landings?
 aggregate(Landed.Lbs ~ Common.Name, data = dat, sum, na.rm = T) |> View()
 aggregate(value_2024 ~ Common.Name, data = dat, sum, na.rm = T) |> View()
@@ -173,12 +219,19 @@ cnty_sum <- kmk_dat |>
   
 gulf_val <- merge(gulf,cnty_sum, by = 'GEOID')
 
-cnty_n <- aggregate(License ~ dealer_county + dealer_geoid, data = kmk_dat, function(x) length(unique(x))) |>
-  # arrange(desc(License)) |>
-  setNames(c('county','GEOID','License'))
+# cnty_n <- aggregate(License ~ dealer_county + dealer_geoid, data = kmk_dat, function(x) length(unique(x))) |>
+#   # arrange(desc(License)) |>
+#   setNames(c('county','GEOID','License'))
+# cnty_n <- merge(gulf, cnty_n, by = 'GEOID')
+
+cnty_n <- subset(dat, SupplierDealer.ID %in% kmk_dlr) |>
+  group_by(dealer_county, dealer_geoid) |>
+  summarize(
+    License = n_distinct(SupplierDealer.ID)
+  ) |>
+  setNames(c('county','GEOID','License')) |>
+  filter(License>=3)
 cnty_n <- merge(gulf, cnty_n, by = 'GEOID')
-
-
 
 ggplot() +
   geom_sf(data = world) +
@@ -199,11 +252,13 @@ ggplot() +
   ) + 
   labs(
     title = "King Mackerel Value by County",
-    subtitle = "Mean Annual value 2001-2024",
+    subtitle = "Mean Annual value 2000-2024",
     caption = "SEFSC-SSRG dealer dataset",
     x = 'Longitude', y = 'Latitude'
   ) +
   theme_minimal()
+ggsave('kgm_usd_county.png', width = 7, height = 5, units = 'in',
+       path = "~/R_projects/Looking_4_CMP/figs")
 
 ggplot() +
   geom_sf(data = world) +
@@ -224,11 +279,13 @@ ggplot() +
   ) + 
   labs(
     title = "King Mackerel Landings by County",
-    subtitle = "Mean Annual landings 2001-2024",
+    subtitle = "Mean Annual landings 2000-2024",
     caption = "SEFSC-SSRG dealer dataset",
     x = 'Longitude', y = 'Latitude'
   ) +
   theme_minimal()
+ggsave('kgm_lbs_county.png', width = 7, height = 5, units = 'in',
+       path = "~/R_projects/Looking_4_CMP/figs")
 
 
 ggplot() +
@@ -250,11 +307,13 @@ ggplot() +
   ) +
   labs(
     title = "King Mackerel Dealers per County",
-    subtitle = "Total Dealers 2001-2024",
+    subtitle = "Total Dealers 2000-2024",
     caption = "SEFSC-SSRG dealer dataset",
     x = 'Longitude', y = 'Latitude'
   ) +
   theme_minimal()
+ggsave('kgm_dlr_county.png', width = 7, height = 5, units = 'in',
+       path = "~/R_projects/Looking_4_CMP/figs")
 
 
 ### trend in landings per county over time
@@ -265,17 +324,30 @@ kmk_ann <- kmk_dat |>
   group_by(Year, dealer_county, dealer_geoid) |>
   summarize(
     total_value = sum(value_2024, na.rm = TRUE),
-    total_lbs = sum(Landed.Lbs, na.rm = TRUE),
-    unique_dealers = n_distinct(License)
+    total_lbs = sum(Landed.Lbs, na.rm = TRUE)#,
+    # unique_dealers = n_distinct(License)
   )
 
-dlr_rm <- kmk_dat |> 
+kmk_yr_dlr <- subset(dat, SupplierDealer.ID %in% kmk_dlr) |>
+  group_by(Year, dealer_county, dealer_geoid) |>
+  summarize(
+    unique_dealers = n_distinct(SupplierDealer.ID)
+  )
+kmk_ann <- merge(kmk_ann, kmk_yr_dlr, by = c('Year', 'dealer_county', 'dealer_geoid')) 
+
+dlr_rm <- subset(dat, SupplierDealer.ID %in% kmk_dlr) |> 
   group_by(dealer_county, dealer_geoid) |>
   summarize(
     unique_dealers = n_distinct(License)
   ) |>
   filter(unique_dealers < 3)
-  # print(n = 50)
+
+dlr_rm <- kmk_dat |>
+  group_by(dealer_county, dealer_geoid) |>
+  summarize(
+    unique_dealers = n_distinct(License)
+  ) |>
+  filter(unique_dealers < 3)
 
 filtered_data <- kmk_ann |>
   # group_by(dealer_geoid) |>
@@ -324,7 +396,7 @@ ggplot() +
     shape = 21,          # Equivalent to pch = 21 (allows both fill and border color)
     fill = "black",      # Interior background color (bg = 1)
     color = "white",     # Outer border line color (col = 'white')
-    size = 3,            # Bumped size slightly so the white border is crisp
+    size = 2,            # Bumped size slightly so the white border is crisp
     stroke = 1 
   )  +
   coord_sf(
@@ -334,7 +406,8 @@ ggplot() +
   labs(title = "Landings Trend Over Time by County",
        x = 'Longitude', y = 'Latitude') +
   theme_minimal()
-
+ggsave('kgm_lbs_county_t.png', width = 7, height = 5, units = 'in',
+       path = "~/R_projects/Looking_4_CMP/figs")
 
 
 ggplot() +
@@ -355,7 +428,7 @@ ggplot() +
     shape = 21,          # Equivalent to pch = 21 (allows both fill and border color)
     fill = "black",      # Interior background color (bg = 1)
     color = "white",     # Outer border line color (col = 'white')
-    size = 3,            # Bumped size slightly so the white border is crisp
+    size = 2,            # Bumped size slightly so the white border is crisp
     stroke = 1 
   ) +
   coord_sf(
@@ -365,7 +438,8 @@ ggplot() +
   labs(title = "Dealers Trend Over Time by County",
        x = 'Longitude', y = 'Latitude') +
   theme_minimal()
-
+ggsave('kgm_dlr_county_t.png', width = 7, height = 5, units = 'in',
+       path = "~/R_projects/Looking_4_CMP/figs")
 
 
 ### scratch ###
