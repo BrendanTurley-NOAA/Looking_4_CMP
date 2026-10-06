@@ -31,11 +31,16 @@ cflp <- subset(cflp, LAND_YEAR>1998 & CATCH_TYPE == 'CATCH') |>
   subset(AREA_FISHED!='1' & AREA_FISHED!='2' & !is.na(AREA_FISHED))
 gc()
 
-### what has most landings?
-cflp <- subset(cflp, LAND_YEAR>1998 & CATCH_TYPE == 'CATCH') |>
-  subset(REGION == 'GOM' & is.element(ST_ABRV, gom_st))
+### add fishing year
+cflp$fish_yr <- ifelse(cflp$LAND_MONTH < 7, cflp$LAND_YEAR - 1, cflp$LAND_YEAR)
+cflp <- subset(cflp, COMMON_NAME=='MACKERELS, KING AND CERO' &
+                 fish_yr>1998 & fish_yr<2024)
 
-aggregate(TOTAL_WHOLE_POUNDS ~ COMMON_NAME, data = cflp, sum, na.rm = T) |> View()
+# ### what has most landings?
+# cflp <- subset(cflp, LAND_YEAR>1998 & CATCH_TYPE == 'CATCH') |>
+#   subset(REGION == 'GOM' & is.element(ST_ABRV, gom_st))
+# 
+# aggregate(TOTAL_WHOLE_POUNDS ~ COMMON_NAME, data = cflp, sum, na.rm = T) |> View()
 
 ### pull out handlines only
 # table(cflp$GEAR)
@@ -130,7 +135,7 @@ plot(aggregate(AREA_FISHED ~ LAND_YEAR,
                data = subset(cpue_yr_area_region,
                                LAND_YEAR>2012),
                length),
-     typ = 'o',ylab = 'Number of areas fished', pch = 16)
+     typ = 'o',xlab = '', ylab = 'Number of areas fished', pch = 16)
 grid()
 dev.off()
 
@@ -178,3 +183,28 @@ legend( -97.5, 26.5,
         seq(0,12,3), fill = rocket(length(seq(0,12,3)),direction=-1),
         # title = '# of years fished 2022-24',
         xpd = F, horiz = T)
+
+
+setwd("~/R_projects/Looking_4_CMP/figs")
+png('kgm_cpue_area_test.png', width = 8, height = 9, units = 'in', res = 300)
+par(mfrow = c(2,1), mar = c(1,4,1,1))
+plot(aggregate(AREA_FISHED ~ LAND_YEAR, 
+               data = subset(cpue_yr_area_region,
+                             LAND_YEAR>2012),
+               length),
+     typ = 'o', las = 1, pch = 16,
+     xlab = '', ylab = 'Number of areas fished')
+grid()
+mtext('a)', side = 3, adj = 0.01, line = -1, font = 2)
+
+plot(world, xlim = c(-97.5,-80), ylim = c(24, 31), 
+     mar = c(1, 4, 1, 1), buffer=T, las = 1)
+plot(kmk_areas['LAND_YEAR'], pal = 'gray90', breaks = c(0,100), add=T)
+plot(kmk_areas2['LAND_YEAR'], pal = cmocean('algae')(4),add=T)
+legend(-82, 31,cex = 0.8,
+        c('0','1', '2','3'), fill = c('gray90',cmocean('algae')(4)),
+        title = 'Years fished \n2022-24',
+        xpd = F, horiz = F)
+mtext('b)', side = 3, adj = 0.01, line = -4, font = 2)
+dev.off()
+

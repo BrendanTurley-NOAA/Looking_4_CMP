@@ -9,6 +9,46 @@ library(terra)
 library(lubridate)
 library(cmocean)
 
+### load data ------------------------
+setwd("C:/Users/brendan.turley/Documents/R_projects/Fishing-Community-Resilience/data")
+# dat <- read.csv('lbcw_gom_combined_cleaned.csv')
+dat <- read.csv('lbcw_gom_combined_cleaned_v03.csv')
+# dat <- dat[which(dat$shore.Adjacent == 1), ]
+kmk_dat <- subset(dat, Species.ITIS=='172435') |>
+  subset(Year>1998)
+
+
+### total landings and by state
+tot_lbs <- aggregate(Landed.Lbs ~ Year,
+                     data = kmk_dat,
+                     sum, na.rm = T)
+
+tot_lbs_st <- aggregate(Landed.Lbs ~ Year + LandingState,
+                        data = kmk_dat,
+                        sum, na.rm = T)
+
+plot(tot_lbs$Year, tot_lbs$Landed.Lbs/1e6, typ = 'o', pch = 16,
+     xlab = 'Year', ylab = 'Total Landings (x1,000,000 lbs)',
+     ylim = c(0, max(tot_lbs$Landed.Lbs/1e6)))
+
+barplot(tot_lbs$Landed.Lbs/1e6, names.arg = tot_lbs$Year, las = 2,
+        xlab = 'Year', ylab = 'Total Landings (x1,000,000 lbs)',
+        col = 'gray50')
+
+plot(tot_lbs_st$Year, tot_lbs_st$Landed.Lbs/1e6, typ = 'n',
+     xlab = 'Year', ylab = 'Total Landings (x1,000,000 lbs)')
+for(i in gom_st){
+  lines(tot_lbs_st$Year[tot_lbs_st$LandingState==i],
+        tot_lbs_st$Landed.Lbs[tot_lbs_st$LandingState==i]/1e6,
+        typ = 'o', pch = 16, col = which(gom_st==i))
+}
+
+
+
+### load ACLS
+setwd("C:/Users/brendan.turley/Documents/CMP/data/landings")
+acls <- read.csv('kgm_acls.csv')
+
 
 #### read data and subset ####--------------------------------------------------
 gom_st <- c('FL', 'AL', 'MS', 'LA', 'TX') #|> sort()
@@ -16,7 +56,7 @@ gom_st <- c('FL', 'AL', 'MS', 'LA', 'TX') #|> sort()
 setwd("C:/Users/brendan.turley/Documents/CMP/data/cflp")
 cflp <- readRDS('CFLPblake.rds')
 cflp <- subset(cflp, LAND_YEAR>1998 & CATCH_TYPE == 'CATCH') |>
-  subset(REGION == 'GOM' & is.element(ST_ABRV, gom_st)) #|>
+  subset(REGION == 'GOM') #|>
   # subset(AREA_FISHED!='1' & AREA_FISHED!='2' & !is.na(AREA_FISHED)) |>
   # filter(FLAG_GEAR == 0,
   #        FLAG_MULTIGEAR == 0,
@@ -29,17 +69,21 @@ gc()
 
 ### add fishing year
 cflp$fish_yr <- ifelse(cflp$LAND_MONTH < 7, cflp$LAND_YEAR - 1, cflp$LAND_YEAR)
-
+cflp <- subset(cflp, COMMON_NAME=='MACKERELS, KING AND CERO' &
+         fish_yr>1998 & fish_yr<2024)
+cflp$gear_cat <- ifelse(grepl('GILL',cflp$GEAR_FIN_NAME), 'gn', 'hl')
 
 ### total landings and by state
 tot_lbs <- aggregate(TOTAL_WHOLE_POUNDS ~ fish_yr,
-                     data = subset(cflp, COMMON_NAME=='MACKERELS, KING AND CERO' &
-                                     fish_yr>1998 & fish_yr<2024),
+                     data = cflp,
                      sum, na.rm = T)
 
 tot_lbs_st <- aggregate(TOTAL_WHOLE_POUNDS ~ fish_yr + ST_ABRV,
-                        data = subset(cflp, COMMON_NAME=='MACKERELS, KING AND CERO' &
-                                        fish_yr>1998 & fish_yr<2024),
+                        data = subset(cflp, is.element(ST_ABRV, gom_st)),
+                        sum, na.rm = T)
+
+tot_lbs_gr <- aggregate(TOTAL_WHOLE_POUNDS ~ fish_yr + gear_cat,
+                        data = cflp,
                         sum, na.rm = T)
 
 plot(tot_lbs$fish_yr, tot_lbs$TOTAL_WHOLE_POUNDS/1e6, typ = 'o', pch = 16,
@@ -58,6 +102,13 @@ for(i in gom_st){
         typ = 'o', pch = 16, col = which(gom_st==i))
 }
 
+with(subset(tot_lbs_gr, gear_cat=='hl'),
+     plot(fish_yr, TOTAL_WHOLE_POUNDS/1e6, typ = 'o',
+          xlab = 'Year', ylab = 'Total Landings (x1,000,000 lbs)',
+          ylim = range(tot_lbs_gr$TOTAL_WHOLE_POUNDS/1e6)))
+with(subset(tot_lbs_gr, gear_cat=='gn'),
+     points(fish_yr, TOTAL_WHOLE_POUNDS/1e6, typ = 'o'))
+
 ### make stacked barplots as proportion per year
 
 reshaped_lbs_st <- reshape(tot_lbs_st, idvar = 'fish_yr', timevar = 'ST_ABRV', direction = 'wide')
@@ -66,15 +117,19 @@ yr_pro <- t(as.matrix(reshaped_lbs_st[,2:6]/tot_lbs$TOTAL_WHOLE_POUNDS))
 # yr_pro <- yr_pro[order(gom_st),]
 
 cols <- cmocean('deep', direction = 1)(length(gom_st))
-# cols <- cmocean('phase', direction = 1)(length(gom_st)+1)[-1]
+cols <- rev(c('orangered1','gold','gray','cornflowerblue','purple4'))
+# cols <- rev(c('gold','orangered1','magenta2','purple4','cornflowerblue'))
 
 setwd("~/R_projects/King-Mackerel-ESP/figures/plots")
 png('kgm_landings.png',
     width = 7, height = 6, units = 'in', res = 300, pointsize = 11)
 par(mar = c(5,5,1,4),mfrow=c(2,1))
-barplot(tot_lbs$TOTAL_WHOLE_POUNDS/1e6, names.arg = tot_lbs$fish_yr, las = 2,
+b <- barplot(tot_lbs$TOTAL_WHOLE_POUNDS/1e6, names.arg = tot_lbs$fish_yr, las = 2,
         xlab = 'Year', ylab = 'Total Landings \n(x1,000,000 lbs)',
+        ylim = c(0, max(acls$commercial)),
         col = 'gray')
+abline(h = mean(tot_lbs$TOTAL_WHOLE_POUNDS/1e6), lty = 5, lwd = 2)
+lines(as.vector(b), acls$commercial[which(acls$fishing_year %in% tot_lbs$fish_yr)], lwd = 2)
 barplot(yr_pro, beside = F, names.arg = tot_lbs$fish_yr, las = 2, col = cols,
         ylab = 'Landings by State', xlab = 'Year', yaxt = 'n')
 axis(2,seq(0,1,0.2),labels = paste0(seq(0,100,20),'%'), las = 2)
