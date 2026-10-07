@@ -452,8 +452,11 @@ ggsave(filename = plot_filename, width = 6, height = 5, unit = 'in')
 
 ### detrended
 
-setwd(here('data/intermediate'))
-load('mhw_dt_results.RData')
+# setwd(here('data/intermediate'))
+# setwd("~/R_projects/Gulf-ESR/data/intermediate")
+setwd("~/R_projects/Looking_4_CMP/data")
+load(file_out)
+# load('mhw_dt_results.RData')
 
 ### seasonal -------------------
 mhw_cube <- mhw_dt_cube |>
@@ -498,7 +501,7 @@ for(i in 1:4){
   plot(yagg$year, yagg$percent, typ = 'l', lwd = 2,
        las = 1, xlab = '', ylab = 'EEZ Proportion', main = mains[[i]],
        panel.first = list(abline(h = c(1,.5,0), lty = c(2,5,2))),
-       ylim = c(0,1))
+       ylim = c(0,.4))
   if(mod$coefficients[8]<=.05){
     abline(mod, col = 'orange', lwd = 2)
   }
@@ -632,14 +635,14 @@ h1dt <- hist(event_no_mean$event_no)
 
 mean_event_no <- matrix(event_no_mean$event_no, 52, 72)
 ### put into raster
-event_rast <- rast(mean_event_no[nrow(mean_event_no):1,])
-ext(event_rast) <- c(range(lon_lat$lon),range(lon_lat$lat))
-crs(event_rast) <- "EPSG:4326"
-plot(event_rast)
+event_rast2 <- rast(mean_event_no[nrow(mean_event_no):1,])
+ext(event_rast2) <- c(range(lon_lat$lon),range(lon_lat$lat))
+crs(event_rast2) <- "EPSG:4326"
+plot(event_rast2)
 
 ### colors and breaks for plotting
-e_brks <- seq(min(h1dt$breaks),max(h1dt$breaks),.1)
-e_cols <- (cmocean('thermal')(length(e_brks)-1))
+e_brks2 <- seq(min(h1dt$breaks),max(h1dt$breaks),.1)
+e_cols2 <- (cmocean('thermal')(length(e_brks)-1))
 
 
 ### spatial trend
@@ -655,14 +658,14 @@ h2dt <- hist(gridcell_lm$slope)
 
 mhw_slope <- matrix(gridcell_lm$slope, 52, 72)
 ### put into raster
-slope_rast <- rast(mhw_slope[nrow(mhw_slope):1,])
-ext(slope_rast) <- c(range(lon_lat$lon),range(lon_lat$lat))
-crs(slope_rast) <- "EPSG:4326"
-plot(slope_rast)
+slope_rast2 <- rast(mhw_slope[nrow(mhw_slope):1,])
+ext(slope_rast2) <- c(range(lon_lat$lon),range(lon_lat$lat))
+crs(slope_rast2) <- "EPSG:4326"
+plot(slope_rast2)
 
 ### colors and breaks for plotting
-s_brks <- seq(-3,3,.1)
-s_cols <- (cmocean('balance')(length(s_brks)-1))
+s_brks2 <- seq(-3,3,.1)
+s_cols2 <- (cmocean('balance')(length(s_brks)-1))
 
 
 setwd("~/R_projects/Looking_4_CMP/figs")
@@ -670,8 +673,8 @@ png('mhw-surface-spatial-plot2.png',
     width = 6, height = 10, units = 'in', res = 300)
 par(mfrow=c(2,1))
 
-plot(event_rast,
-     col = e_cols, range = c(min(e_brks),max(e_brks)),
+plot(event_rast2,
+     col = e_cols2, range = c(min(e_brks2),max(e_brks2)),
      plg = list(tick = 'out'),
      main = 'Mean Intensity deg-days per year',
      mar = c(1, 2, 1, 4))
@@ -679,9 +682,9 @@ plot(world, add= T, col = 'gray')
 contour(ln[ln_i],lt[lt_i],bathy, levels = -100, add=T, lwd = 2)
 # plot(gulf_eez, add = T)
 
-plot(slope_rast,
-     col = s_cols, range = c(min(s_brks),max(s_brks)),
-     # breaks = s_brks,
+plot(slope_rast2,
+     col = s_cols2, range = c(min(s_brks2),max(s_brks2)),
+     # breaks = s_brks2,
      plg = list(tick = 'out'),
      main = 'Cummulative Intensity Trend (degree-days/year)',
      mar = c(1, 2, 1, 4))
@@ -692,6 +695,36 @@ contour(ln[ln_i],lt[lt_i],bathy, levels = -100, add=T, lwd = 2)
 dev.off()
 
 
+
+setwd("~/R_projects/Looking_4_CMP/figs")
+png('mhw-surface-spatial-plot3.png',
+    width = 6, height = 10, units = 'in', res = 300)
+par(mfrow=c(2,1))
+
+png('mhw-surface-spatial-plot3.png',
+    width = 10, height = 6, units = 'in', res = 300)
+par(mfrow=c(1,2))
+
+plot(slope_rast,
+     col = s_cols, range = c(min(s_brks),max(s_brks)),
+     # breaks = s_brks,
+     plg = list(tick = 'out'),
+     main = 'Marine Heatwave Trend (events per decade)',
+     mar = c(1, 2, 1, 4))
+plot(world, add= T, col = 'gray')
+contour(ln[ln_i],lt[lt_i],bathy, levels = -100, add=T, lwd = 2)
+# plot(gulf_eez, add = T)
+
+plot(slope_rast2,
+     col = s_cols2, range = c(min(s_brks2),max(s_brks2)),
+     # breaks = s_brks2,
+     plg = list(tick = 'out'),
+     main = 'Cummulative Intensity Trend (degree-days/year)',
+     mar = c(1, 2, 1, 4))
+plot(world, add= T, col = 'gray')
+contour(ln[ln_i],lt[lt_i],bathy, levels = -100, add=T, lwd = 2)
+
+dev.off()
 
 
 

@@ -32,9 +32,9 @@ cflp <- subset(cflp, LAND_YEAR>1998 & CATCH_TYPE == 'CATCH') |>
 gc()
 
 ### add fishing year
-cflp$fish_yr <- ifelse(cflp$LAND_MONTH < 7, cflp$LAND_YEAR - 1, cflp$LAND_YEAR)
-cflp <- subset(cflp, COMMON_NAME=='MACKERELS, KING AND CERO' &
-                 fish_yr>1998 & fish_yr<2024)
+# cflp$fish_yr <- ifelse(cflp$LAND_MONTH < 7, cflp$LAND_YEAR - 1, cflp$LAND_YEAR)
+# cflp <- subset(cflp, COMMON_NAME=='MACKERELS, KING AND CERO' &
+#                  fish_yr>1998 & fish_yr<2024)
 
 # ### what has most landings?
 # cflp <- subset(cflp, LAND_YEAR>1998 & CATCH_TYPE == 'CATCH') |>
@@ -186,7 +186,7 @@ legend( -97.5, 26.5,
 
 
 setwd("~/R_projects/Looking_4_CMP/figs")
-png('kgm_cpue_area_test.png', width = 8, height = 9, units = 'in', res = 300)
+png('kgm_cpue_area_test.png', width = 8, height = 7, units = 'in', res = 300)
 par(mfrow = c(2,1), mar = c(1,4,1,1))
 plot(aggregate(AREA_FISHED ~ LAND_YEAR, 
                data = subset(cpue_yr_area_region,
@@ -194,6 +194,11 @@ plot(aggregate(AREA_FISHED ~ LAND_YEAR,
                length),
      typ = 'o', las = 1, pch = 16,
      xlab = '', ylab = 'Number of areas fished')
+abline(h = mean(aggregate(AREA_FISHED ~ LAND_YEAR, 
+                          data = subset(cpue_yr_area_region, 
+                                        LAND_YEAR>2012 & LAND_YEAR<2022),length)[,2]),
+       lty = 5, lwd = 2)
+
 grid()
 mtext('a)', side = 3, adj = 0.01, line = -1, font = 2)
 
@@ -205,6 +210,6 @@ legend(-82, 31,cex = 0.8,
         c('0','1', '2','3'), fill = c('gray90',cmocean('algae')(4)),
         title = 'Years fished \n2022-24',
         xpd = F, horiz = F)
-mtext('b)', side = 3, adj = 0.01, line = -4, font = 2)
+mtext('b)', side = 3, adj = 0.01, line = -1.5, font = 2)
 dev.off()
 
