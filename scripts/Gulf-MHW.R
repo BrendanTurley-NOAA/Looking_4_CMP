@@ -451,12 +451,14 @@ ggsave(filename = plot_filename, width = 6, height = 5, unit = 'in')
 
 
 ### detrended
+file_out <- 'mhw_dtlm_results.RData'
 
 # setwd(here('data/intermediate'))
 # setwd("~/R_projects/Gulf-ESR/data/intermediate")
 setwd("~/R_projects/Looking_4_CMP/data")
 load(file_out)
 # load('mhw_dt_results.RData')
+
 
 ### seasonal -------------------
 mhw_cube <- mhw_dt_cube |>
