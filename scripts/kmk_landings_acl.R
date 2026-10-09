@@ -1,4 +1,7 @@
 
+library(cmocean)
+library(readxl)
+
 setwd("C:/Users/brendan.turley/Documents/CMP/data")
 land <- read.csv('kmk_comm_land.csv')
 land$year1 <- 2016:2022
@@ -88,7 +91,7 @@ subset(gn_land, South_Zone_GN > South_Zone_GN_Quota)
 
 library(readxl)
 
-setwd("C:/Users/brendan.turley/Documents/CMP/data")
+setwd("C:/Users/brendan.turley/Documents/CMP/data/landings")
 land <- read_xlsx('kmk_landings_sero_acl.xlsx', sheet = 2) |> as.data.frame()
 land$year1 <- 2024:2016
 
@@ -172,3 +175,151 @@ mtext('Southern GN')
 abline(h = 0, lwd = 1.5)
 dev.off()
 
+
+setwd("~/R_projects/misc-noaa-scripts/figs")
+png('zone_land_quota_update2.png', width = 7, height = 5, units = 'in', res = 300)
+par(mfrow = c(2,2), mar = c(3,4,1,1))
+plot(land$year1, land$WZ/1e6,
+     typ = 'l', lty = 1, lwd = 2,
+     ylim = c(0,1.4), las = 1,
+     xlab = '', ylab = 'Landings (million lbs.)')
+grid()
+points(land$year1, land$`WZ Quota`/1e6,
+       typ = 'l', lty = 5, lwd = 2)
+with(subset(land, WZ > `WZ Quota`),
+     points(year1, WZ/1e6, col = 'red', pch = 17, cex = 1.5))
+axis(1, land$year1)
+mtext('Western HL')
+abline(h = 0, lwd = 1.5, lty = 2)
+
+plot(land$year1, land$NZ/1e6,
+     typ = 'l', lty = 1, lwd = 2,
+     ylim = c(0,1.4), las = 1,
+     xlab = '', ylab = '')
+grid()
+points(land$year1, land$`NZ Quota`/1e6,
+       typ = 'l', lty = 5, lwd = 2)
+with(subset(land, NZ > `NZ Quota`),
+     points(year1, NZ/1e6, col = 'red', pch = 17, cex = 1.5))
+axis(1, land$year1)
+mtext('Northern HL')
+abline(h = 0, lwd = 1.5, lty = 2)
+
+legend('topleft', c('Sector ACL', "Commercial Landings", 'Overages'),
+       col = c(1,1,'red'), lty = c(5,1,NA), pch = c(NA, NA, 17), bty = 'n',
+       cex = .9)
+
+plot(land$year1, land$SZ/1e6,
+     typ = 'l', lty = 1, lwd = 2,
+     ylim = c(0,1.4), las = 1,
+     xlab = '', ylab = 'Landings (million lbs.)')
+grid()
+points(land$year1, land$`SZ Quota`/1e6,
+       typ = 'l', lty = 5, lwd = 2)
+with(subset(land, SZ > `SZ Quota`),
+     points(year1, SZ/1e6, col = 'red', pch = 17, cex = 1.5))
+axis(1, land$year1)
+mtext('Southern HL')
+abline(h = 0, lwd = 1.5, lty = 2)
+
+plot(gn_land$year1, gn_land$`Total Reported`/1e6,
+     typ = 'l', lty = 1, lwd = 2,
+     ylim = c(0,1.4), las = 1,
+     xlab = '', ylab = '')
+grid()
+points(gn_land$year1, gn_land$`Quota`/1e6,
+       typ = 'l', lty = 5, lwd = 2)
+with(subset(gn_land, `Total Reported` > `Quota`),
+     points(year1, `Total Reported`/1e6, col = 'red', pch = 17, cex = 1.5))
+axis(1, land$year1)
+mtext('Southern GN')
+abline(h = 0, lwd = 1.5, lty = 2)
+dev.off()
+
+
+### from SERO - Micheal Larkin
+setwd("C:/Users/brendan.turley/Documents/CMP/data/landings")
+acls <- read.csv('kgm_acls.csv')
+rec_state <- read_xlsx('Gulf_king_mackerel_rec_landings_Oct2026.xlsx', sheet = 3) |> as.data.frame()
+rec_mode <- read_xlsx('Gulf_king_mackerel_rec_landings_Oct2026.xlsx', sheet = 2) |> as.data.frame()
+
+rec_state_pro <- sweep(rec_state[,3:7], 1, rec_state$total_ww_lbs, FUN = '/') |> t()
+rec_mode_pro <- sweep(rec_mode[,3:6], 1, rec_mode$total_ww_lbs, FUN = '/') |> t()
+
+cols <- c('orangered1','gold','gray','cornflowerblue','purple4')
+cols2 <- cmocean('deep', direction = 1)(4)
+
+
+setwd("~/R_projects/King-Mackerel-ESP/figures/plots")
+png('kgm_landings_rec.png',
+    width = 7, height = 9, units = 'in', res = 300, pointsize = 12)
+par(mar = c(5,5,1,5),mfrow=c(3,1))
+
+b <- barplot(rec_state$total_ww_lbs/1e6, names.arg = 2000:2024, las = 2,
+             ylab = 'Total Recreational Landings \n(million lbs)')
+lines(c(b-.6,b[length(b)]), 
+      c(acls$recreational[which(acls$fishing_year %in% 2000:2024)], 
+        acls$recreational[which(acls$fishing_year %in% 2000:2024)][length(b)]),
+      lwd = 2,
+      typ = 's')
+mtext('a)', font = 2, side = 3, adj = 0.01)
+
+b2 <- barplot(rec_state_pro, names.arg = 2000:2024, las = 2,
+              ylab = 'Landings by State', col = cols, yaxt = 'n')
+axis(2,seq(0,1,0.2),labels = paste0(seq(0,100,20),'%'), las = 2)
+legend(b2[25]+.5,1, c('FL','AL','MS','LA','TX'), 
+       fill = rev(cols), xpd = T, bty = 'n')
+mtext('b)', font = 2, side = 3, adj = 0.01)
+
+b3 <- barplot(rec_mode_pro, names.arg = 2000:2024, las = 2,
+              ylab = 'Landings by Mode', xlab = 'Fishing Year', col = cols2, yaxt = 'n')
+axis(2,seq(0,1,0.2),labels = paste0(seq(0,100,20),'%'), las = 2)
+legend(b3[25]+.5,1, rev(rownames(rec_mode_pro)), 
+       fill = rev(cols2), xpd = T, bty = 'n',xjust = 0)
+mtext('c)', font = 2, side = 3, adj = 0.01)
+
+dev.off()
+
+setwd("C:/Users/brendan.turley/Documents/CMP/data/landings")
+com <- read_xlsx('KM_com_land_2625_20260428C.xlsx', sheet = 2) |> as.data.frame()
+com <- subset(com, FISHING_YEAR>1999)
+tot_lbs <- aggregate(tot_lbs ~ FISHING_YEAR, data = com, sum, na.rm = T)
+yr_st <- aggregate(tot_lbs ~ FISHING_YEAR + ST_ABRV, data = com, sum, na.rm = T)
+st_abrv <- c('TX','LA','MS','AL','FL')
+
+plot(yr_st$FISHING_YEAR, yr_st$tot_lbs/1e6, typ = 'n')
+for(i in st_abrv){
+  points(yr_st$FISHING_YEAR[yr_st$ST_ABRV==i],
+         yr_st$tot_lbs[yr_st$ST_ABRV==i]/1e6,
+         typ = 'o', pch = 16, col = which(st_abrv==i))
+}
+
+reshaped_lbs_st <- reshape(yr_st, idvar = 'FISHING_YEAR', timevar = 'ST_ABRV', direction = 'wide')
+reshaped_lbs_st[is.na(reshaped_lbs_st)] <- 0
+reshaped_lbs_st <- reshaped_lbs_st[,c(1,6,4,5,2,3)]
+yr_pro <- t(as.matrix(reshaped_lbs_st[,2:6]/tot_lbs$tot_lbs))
+
+cols <- c('orangered1','gold','gray','cornflowerblue','purple4')
+
+setwd("~/R_projects/King-Mackerel-ESP/figures/plots")
+png('kgm_landings_com.png',
+    width = 7, height = 6, units = 'in', res = 300, pointsize = 12)
+par(mar = c(5,5,1,5),mfrow=c(2,1))
+
+b <- barplot(tot_lbs$tot_lbs/1e6, names.arg = tot_lbs$FISHING_YEAR, las = 2,
+        ylab = 'Total Landings \n(million lbs)',
+        ylim = c(0, max(acls$commercial[which(acls$fishing_year %in% 2000:2024)])))
+lines(c(b-.6,b[length(b)]), 
+      c(acls$commercial[which(acls$fishing_year %in% 2000:2024)], 
+        acls$commercial[which(acls$fishing_year %in% 2000:2024)][length(b)]),
+      lwd = 2,
+      typ = 's')
+
+b2 <- barplot(yr_pro, beside = F, names.arg = tot_lbs$FISHING_YEAR, 
+        las = 2, col = cols,
+        ylab = 'Landings by State', xlab = 'Fishing Year', yaxt = 'n')
+axis(2,seq(0,1,0.2),labels = paste0(seq(0,100,20),'%'), las = 2)
+legend(b2[25]+.5,1, rev(st_abrv), 
+       fill = rev(cols), xpd = T, bty = 'n')
+
+dev.off()
